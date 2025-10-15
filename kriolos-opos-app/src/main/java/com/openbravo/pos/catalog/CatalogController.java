@@ -123,7 +123,7 @@ public class CatalogController {
     List<ProductInfoExt> getProductCompanion(String productId) {
         List<ProductInfoExt> list = new ArrayList<>();
         try {
-            list = dlLogicSales.getProductComments(productId);
+            list = dlLogicSales.getProductComposite(productId);
         }
         catch (BasicException ex) {
             Exceptions.printStackTrace(ex);

@@ -555,7 +555,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return List of ProductInfoExt
      * @throws BasicException
      */
-    public List<ProductInfoExt> getProductComments(String id) throws BasicException {
+    public List<ProductInfoExt> getProductComposite(String id) throws BasicException {
         return new PreparedSentence<String, ProductInfoExt>(s,
                 "SELECT "
                 + "P.ID, "
