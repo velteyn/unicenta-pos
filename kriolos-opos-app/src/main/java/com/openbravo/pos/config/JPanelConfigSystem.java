@@ -166,9 +166,9 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
         }
         jchkShowCustomerDetails.setSelected(Boolean.parseBoolean(config.getProperty("table.showcustomerdetails")));
         if (config.getProperty("table.customercolour")==null){
-            CustomerColour.setText("");
+            CustomerColour.reset();
         }else{
-            CustomerColour.setText(config.getProperty("table.customercolour"));
+            CustomerColour.setColor(config.getProperty("table.customercolour"));
         }
 
         String waiterCheck =(config.getProperty("table.showwaiterdetails"));
@@ -177,14 +177,14 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
         }
         jchkShowWaiterDetails.setSelected(Boolean.parseBoolean(config.getProperty("table.showwaiterdetails")));        
         if (config.getProperty("table.waitercolour")==null){
-            WaiterColour.setText("");
+            WaiterColour.reset();
         }else{
-            WaiterColour.setText(config.getProperty("table.waitercolour"));
+            WaiterColour.setColor(config.getProperty("table.waitercolour"));
         }
         if (config.getProperty("table.tablecolour")==null){                
-            TableNameColour.setText("");      
+            TableNameColour.reset();      
         }else{
-            TableNameColour.setText(config.getProperty("table.tablecolour"));  
+            TableNameColour.setColor(config.getProperty("table.tablecolour"));  
         }
         
         jchkTransBtn.setSelected(Boolean.parseBoolean(config.getProperty("table.transbtn")));                
@@ -206,9 +206,9 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
         config.setProperty("payments.textoverlay", Boolean.toString(jchkTextOverlay.isSelected()));         
         config.setProperty("till.autoLogoff", Boolean.toString(jchkAutoLogoff.isSelected()));                 
         config.setProperty("till.autoLogoffrestaurant", Boolean.toString(jchkAutoLogoffToTables.isSelected()));                        
-        config.setProperty("table.customercolour",CustomerColour.getText());
-        config.setProperty("table.waitercolour",WaiterColour.getText());
-        config.setProperty("table.tablecolour",TableNameColour.getText());
+        config.setProperty("table.customercolour",CustomerColour.getHexColor());
+        config.setProperty("table.waitercolour",WaiterColour.getHexColor());
+        config.setProperty("table.tablecolour",TableNameColour.getHexColor());
         config.setProperty("till.taxincluded",Boolean.toString(jTaxIncluded.isSelected()));                     
         config.setProperty("till.pricewith00",Boolean.toString(jCheckPrice00.isSelected()));                         
         config.setProperty("till.amountattop",Boolean.toString(jMoveAMountBoxToTop.isSelected()));         
@@ -274,7 +274,6 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
         jchkOverride = new javax.swing.JCheckBox();
         jtxtPIN = new javax.swing.JTextField();
         jLabel5 = new javax.swing.JLabel();
-        jLabel6 = new javax.swing.JLabel();
 
         setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         setOpaque(false);
@@ -531,10 +530,6 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
         jLabel5.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         jLabel5.setText("PIN");
 
-        jLabel6.setFont(new java.awt.Font("Arial", 1, 14)); // NOI18N
-        jLabel6.setText(bundle.getString("label.configOptionLogOff")); // NOI18N
-        jLabel6.setPreferredSize(new java.awt.Dimension(100, 30));
-
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -599,23 +594,21 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
                                         .addComponent(jchkSCOnOff, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                                         .addComponent(jchkAutoLogoff, javax.swing.GroupLayout.PREFERRED_SIZE, 327, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                        .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
-                                .addGap(10, 10, 10)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                     .addComponent(jchkTransBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 274, Short.MAX_VALUE)
                                     .addComponent(jchkShowWaiterDetails, javax.swing.GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
                                     .addComponent(jchkShowCustomerDetails, javax.swing.GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
                                     .addComponent(jLabelTableNameTextColour, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(WaiterColour, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(CustomerColour, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(TableNameColour, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))))
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(CustomerColour, javax.swing.GroupLayout.DEFAULT_SIZE, 101, Short.MAX_VALUE)
+                                    .addComponent(WaiterColour, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(TableNameColour, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -667,8 +660,6 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
                             .addComponent(jTxtautoRefreshTimer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLblautoRefresh, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(1, 1, 1)
                         .addComponent(jchkSCOnOff, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -691,7 +682,7 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
                             .addComponent(jLabelTableNameTextColour, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jchkTransBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(61, 61, 61))
+                .addGap(18, 18, 18))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -763,7 +754,6 @@ public class JPanelConfigSystem extends javax.swing.JPanel implements PanelConfi
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
-    private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabelSCRate;
     private javax.swing.JLabel jLabelSCRatePerCent;
     private javax.swing.JLabel jLabelTableNameTextColour;
