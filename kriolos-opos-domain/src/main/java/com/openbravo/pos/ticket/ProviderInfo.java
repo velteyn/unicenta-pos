@@ -25,48 +25,32 @@ package com.openbravo.pos.ticket;
  */
 public class ProviderInfo {
     
-    private int m_iProviderID;
-    private String m_sName;
+    private int providerId;
+    private String name;
 
-    /** Creates new Provider */
     public ProviderInfo() {
-        m_iProviderID = 0;
-        m_sName = "";
+        providerId = 0;
+        name = "";
     }
-    
-    /**
-     *
-     * @return
-     */
+
     public int getProviderID() {
-        return m_iProviderID;
+        return providerId;
     }
-    
-    /**
-     *
-     * @param iProviderID
-     */
+
     public void setProviderID(int iProviderID) {
-        m_iProviderID = iProviderID;
+        providerId = iProviderID;
     }
-    
-    /**
-     *
-     * @return
-     */
+
     public String getName() {
-        return m_sName;
+        return name;
     }
-    
-    /**
-     *
-     * @param sName
-     */
+
     public void setName(String sName) {
-        m_sName = sName;
+        name = sName;
     }
     
+    @Override
     public String toString(){
-        return m_sName;
+        return name;
     }
 }

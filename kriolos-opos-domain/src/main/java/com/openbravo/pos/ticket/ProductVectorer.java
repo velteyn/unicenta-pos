@@ -23,14 +23,13 @@ import com.openbravo.format.Formats;
 import com.openbravo.data.loader.Vectorer;
 import com.openbravo.basic.BasicException;
 import com.openbravo.pos.forms.AppLocal;
-import com.openbravo.pos.ticket.ProductInfoExt;
 /**
  *
  * @author  adrian
  */
-public class ProductVectorer implements Vectorer {
+public class ProductVectorer implements Vectorer<ProductInfoExt> {
     
-    private static String[] m_sHeaders = {
+    private static String[] headers = {
         AppLocal.getIntString("label.prodref"),
         AppLocal.getIntString("label.prodbarcode"),
         AppLocal.getIntString("label.prodname"),
@@ -38,33 +37,28 @@ public class ProductVectorer implements Vectorer {
         AppLocal.getIntString("label.prodpricesell")
     };
     
-    /** Creates a new instance of ProductVectorer */
-    public ProductVectorer() {
-    }
-    
-    /**
-     *
-     * @return
-     * @throws BasicException
-     */
+
+    public ProductVectorer() {}
+
+    @Override
     public String[] getHeaders() throws BasicException {
-        return m_sHeaders;
+        return headers;
     }
 
     /**
      *
-     * @param obj
-     * @return
+     * @param myprod
+     * @return String[5] {Reference, Code, Name, PriceBuy, PriceSell}
      * @throws BasicException
      */
-    public String[] getValues(Object obj) throws BasicException {   
-        ProductInfoExt myprod = (ProductInfoExt) obj;
-        String[] m_sValues = new String[5];
-        m_sValues[0] = Formats.STRING.formatValue(myprod.getReference());
-        m_sValues[1] = Formats.STRING.formatValue(myprod.getCode());
-        m_sValues[2] = Formats.STRING.formatValue(myprod.getName());
-        m_sValues[3] = Formats.CURRENCY.formatValue(myprod.getPriceBuy());
-        m_sValues[4] = Formats.CURRENCY.formatValue(myprod.getPriceSell());     
-        return m_sValues;
+    @Override
+    public String[] getValues(ProductInfoExt myprod) throws BasicException {   
+        String[] values = new String[5];
+        values[0] = Formats.STRING.formatValue(myprod.getReference());
+        values[1] = Formats.STRING.formatValue(myprod.getCode());
+        values[2] = Formats.STRING.formatValue(myprod.getName());
+        values[3] = Formats.CURRENCY.formatValue(myprod.getPriceBuy());
+        values[4] = Formats.CURRENCY.formatValue(myprod.getPriceSell());     
+        return values;
     }
 }

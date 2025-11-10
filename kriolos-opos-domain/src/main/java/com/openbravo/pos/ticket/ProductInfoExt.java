@@ -99,10 +99,6 @@ public class ProductInfoExt {
         memodate = null;
     }
 
-    /**
-     *
-     * @return
-     */
     public final String getID() {
         return m_ID;
     }

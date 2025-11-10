@@ -17,11 +17,11 @@ public class ProductInfoExtA {
     private double taxerate;
     private double pricesellWithTax;
     
-    private String categoryId; //Category ID
-    private boolean m_bCom; //Companion Product
-    private boolean m_bScale; //Is a Scale (product weight)
-    private boolean m_bConstant; //Is a constant
-    private boolean m_bService; // Is a Service
+    private String categoryId;      //Category ID
+    private boolean isComProduct;         //Companion Product
+    private boolean isScaleProduct;       //Is a Scale (product weight)
+    private boolean isConstantProduct;    //Is a constant
+    private boolean isService;     //Is a Service
 
     public String getId() {
         return id;
@@ -88,35 +88,35 @@ public class ProductInfoExtA {
     }
 
     public boolean isCom() {
-        return m_bCom;
+        return isComProduct;
     }
 
-    public void setCom(boolean m_bCom) {
-        this.m_bCom = m_bCom;
+    public void setCom(boolean isCom) {
+        this.isComProduct = isCom;
     }
 
     public boolean isScale() {
-        return m_bScale;
+        return isScaleProduct;
     }
 
-    public void setScale(boolean m_bScale) {
-        this.m_bScale = m_bScale;
+    public void setScale(boolean isScale) {
+        this.isScaleProduct = isScale;
     }
 
     public boolean isConstant() {
-        return m_bConstant;
+        return isConstantProduct;
     }
 
-    public void setConstant(boolean m_bConstant) {
-        this.m_bConstant = m_bConstant;
+    public void setConstant(boolean isConstant) {
+        this.isConstantProduct = isConstant;
     }
 
     public boolean isService() {
-        return m_bService;
+        return isService;
     }
 
-    public void setService(boolean m_bService) {
-        this.m_bService = m_bService;
+    public void setService(boolean isService) {
+        this.isService = isService;
     }
     
     public static SerializerRead<ProductInfoExtA> getSerializerRead() {

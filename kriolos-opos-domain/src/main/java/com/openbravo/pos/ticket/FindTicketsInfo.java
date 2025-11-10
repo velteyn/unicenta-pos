@@ -31,13 +31,13 @@ import java.util.Date;
  */
 public class FindTicketsInfo implements SerializableRead {
     
-    private int ticketid;
-    private int tickettype;
+    private int ticketId;
+    private int ticketType;
     private Date date;
     private String name;
     private String customer;
     private double total;
-    private int ticketstatus;
+    private int ticketStatus;
     
     public FindTicketsInfo() {
         
@@ -51,13 +51,13 @@ public class FindTicketsInfo implements SerializableRead {
     @Override
     public void readValues(DataRead dr) throws BasicException {
         
-        ticketid = dr.getInt(1);
-        tickettype = dr.getInt(2);
+        ticketId = dr.getInt(1);
+        ticketType = dr.getInt(2);
         date = dr.getTimestamp(3);
         name = dr.getString(4);
         customer = dr.getString(5);
         total = (dr.getObject(6) == null) ? 0.0 : dr.getDouble(6);
-        ticketstatus = dr.getInt(7);
+        ticketStatus = dr.getInt(7);
     }
     
     @Override
@@ -65,7 +65,7 @@ public class FindTicketsInfo implements SerializableRead {
         
         String sCustomer = (customer==null) ? "" : customer;
 
-        String sHtml = "<tr><td width=\"75\">"+ "["+ ticketid +"]" +"</td>" +
+        String sHtml = "<tr><td width=\"75\">"+ "["+ ticketId +"]" +"</td>" +
                 "<td width=\"75\">"+ Formats.TIMESTAMP.formatValue(date) +"</td>" +
                 "<td align=\"right\" width=\"100\">"+ Formats.CURRENCY.formatValue(total) +"</td>"+
                 "<td align=\"left\" width=\"100\">"+ sCustomer +"</td>" +
@@ -79,7 +79,7 @@ public class FindTicketsInfo implements SerializableRead {
      * @return
      */
     public int getTicketId(){
-        return this.ticketid;
+        return this.ticketId;
     }
     
     /**
@@ -87,11 +87,11 @@ public class FindTicketsInfo implements SerializableRead {
      * @return
      */
     public int getTicketType(){
-        return this.tickettype;
+        return this.ticketType;
     }
     
     public int getTicketStatus() {
-        return this.ticketstatus;
+        return this.ticketStatus;
     }
    
 }

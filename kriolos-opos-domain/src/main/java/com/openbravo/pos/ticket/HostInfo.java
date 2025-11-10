@@ -16,7 +16,6 @@
  */
 package com.openbravo.pos.ticket;
 
-import com.openbravo.basic.BasicException;
 import com.openbravo.data.loader.DataRead;
 import com.openbravo.data.loader.IKeyed;
 import com.openbravo.data.loader.SerializerRead;
@@ -25,62 +24,59 @@ public class HostInfo implements IKeyed {
 
     //MONEY     HOST    HOSTSEQUENCE    DATESTART       DATEEND
     //private static final long serialVersionUID = 8612449444103L;
-    private String m_sMoney;
-    private String m_sHost;
-    private String m_Hostsequence;
+    private String money;
+    private String host;
+    private String hostsequence;
 
-    /** Creates new CategoryInfo
+    /**
+     * Creates new HostInfo
+     *
      * @param money
      * @param host
-     * @param hostsequence */
+     * @param hostsequence
+     */
     public HostInfo(String money, String host, String hostsequence) {
-       
-        m_sMoney = host; // hack to search by hostname
-        m_sHost = host;
-        m_Hostsequence = hostsequence;
+
+        this.money = host; // hack to search by hostname
+        this.host = host;
+        this.hostsequence = hostsequence;
     }
 
     @Override
     public Object getKey() {
-        return m_sMoney;
+        return money;
     }
-   
+
     public String getHostsequence() {
-        return m_Hostsequence;
+        return hostsequence;
     }
 
     public void setHostsequence(String m_Hostsequence) {
-        this.m_Hostsequence = m_Hostsequence;
+        this.hostsequence = m_Hostsequence;
     }
 
     public String getHost() {
-        return m_sHost;
+        return host;
     }
 
     public void setHost(String m_sHost) {
-        this.m_sHost = m_sHost;
+        this.host = m_sHost;
     }
 
     public String getMoney() {
-        return m_sMoney;
+        return money;
     }
 
     public void setMoney(String m_sMoney) {
-        this.m_sMoney = m_sMoney;
+        this.money = m_sMoney;
     }
 
     @Override
     public String toString() {
-        return m_sHost;
+        return host;
     }
 
-    public static SerializerRead getSerializerRead() {
-        return new SerializerRead() {
-    @Override
-    public Object readValues(DataRead dr) throws BasicException {
-            return new HostInfo(dr.getString(1), dr.getString(2), dr.getString(3));
-        }
-        };
+    public static SerializerRead<HostInfo> getSerializerRead() {
+        return (DataRead dr) -> new HostInfo(dr.getString(1), dr.getString(2), dr.getString(3));
     }
 }
-

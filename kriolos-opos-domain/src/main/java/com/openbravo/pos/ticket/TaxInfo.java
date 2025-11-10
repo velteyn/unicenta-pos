@@ -31,12 +31,12 @@ public class TaxInfo implements Serializable, IKeyed {
     private static final long serialVersionUID = -2705212098856473043L;
     private String id;
     private String name;
-    private String taxcategoryid; // Product Tax Category ID
-    private String taxcustcategoryid; // Customer Tax Category ID
+    private String taxCategoryId; // Product Tax Category ID
+    private String taxCustCategoryId; // Customer Tax Category ID
     private String parentid;
     
     private double rate;
-    private boolean cascade;
+    private boolean isCascade;
     private Integer order;
     
     /** 
@@ -47,7 +47,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @param taxcategoryid Product Tax Category ID
      * @param taxcustcategoryid Customer Tax Category ID
      * @param rate Tax rate
-     * @param cascade if tax calcule is cascade
+     * @param cascade if tax calculation is cascade
      * @param parentid Parent Tax ID
      * @param order (Order/Position)
      */
@@ -55,12 +55,12 @@ public class TaxInfo implements Serializable, IKeyed {
             String parentid, double rate, boolean cascade, Integer order) {
         this.id = id;
         this.name = name;
-        this.taxcategoryid = taxcategoryid;
-        this.taxcustcategoryid = taxcustcategoryid;
+        this.taxCategoryId = taxcategoryid;
+        this.taxCustCategoryId = taxcustcategoryid;
         this.parentid = parentid;
         
         this.rate = rate;
-        this.cascade = cascade;
+        this.isCascade = cascade;
         this.order = order;
     }
     
@@ -113,7 +113,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @return
      */
     public String getTaxCategoryID() {
-        return taxcategoryid;
+        return taxCategoryId;
     }
     
     /**
@@ -121,7 +121,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @param value
      */
     public void setTaxCategoryID(String value) {
-        taxcategoryid = value;
+        taxCategoryId = value;
     }
 
     /**
@@ -129,7 +129,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @return
      */
     public String getTaxCustCategoryID() {
-        return taxcustcategoryid;
+        return taxCustCategoryId;
     }
     
     /**
@@ -137,7 +137,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @param value
      */
     public void setTaxCustCategoryID(String value) {
-        taxcustcategoryid = value;
+        taxCustCategoryId = value;
     }    
 
     /**
@@ -177,7 +177,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @return
      */
     public boolean isCascade() {
-        return cascade;
+        return isCascade;
     }
     
     /**
@@ -185,7 +185,7 @@ public class TaxInfo implements Serializable, IKeyed {
      * @param value
      */
     public void setCascade(boolean value) {
-        cascade = value;
+        isCascade = value;
     }
     
     /**

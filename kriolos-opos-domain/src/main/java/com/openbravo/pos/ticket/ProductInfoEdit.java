@@ -29,10 +29,7 @@ import java.util.Properties;
  *
  */
 public class ProductInfoEdit {
-    
-    /**
-     *
-     */
+
     protected String m_ID;
     protected String m_sRef;
     protected String m_sCode;
@@ -66,9 +63,7 @@ public class ProductInfoEdit {
     protected String m_sUomID;     
     
     protected String m_sDatePick;
-    
-    
-    /** Creates a new instance of ProductInfoEdit */
+
     public ProductInfoEdit() {
         m_ID = null;
         m_sRef = "0000";

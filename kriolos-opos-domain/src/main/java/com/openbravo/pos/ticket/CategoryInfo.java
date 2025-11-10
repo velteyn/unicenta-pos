@@ -19,7 +19,6 @@
 
 package com.openbravo.pos.ticket;
 
-import com.openbravo.basic.BasicException;
 import com.openbravo.data.loader.DataRead;
 import com.openbravo.data.loader.IKeyed;
 import com.openbravo.data.loader.ImageUtils;
@@ -34,77 +33,111 @@ import java.awt.image.*;
 public class CategoryInfo implements IKeyed {
 
     private static final long serialVersionUID = 8612449444103L;
-    private String m_sID;
-    private String m_sName;
-    private String m_sTextTip;
-    private BufferedImage m_Image;
-    private Boolean m_bCatShowName;
+    private String id;
+    private String name;
+    private String textTip;
+    private BufferedImage image;
+    private Boolean catShowName;
+    private String catalogOrder;
+    private String catalogColor;
+    private Boolean catalogEnabled;
 
-    public CategoryInfo(String id, String name, BufferedImage image, String texttip, Boolean catshowname) {
-        m_sID = id;
-        m_sName = name;
-        m_Image = image;
-        m_sTextTip = texttip;
-        m_bCatShowName = catshowname;
+    public CategoryInfo(String id, String name, BufferedImage image, String textTip, Boolean showCatName) {
+        this.id = id;
+        this.name = name;
+        this.image = image;
+        this.textTip = textTip;
+        this.catShowName = showCatName;
     }
 
     @Override
     public Object getKey() {
-        return m_sID;
+        return id;
     }
 
     public void setID(String sID) {
-        m_sID = sID;
+        id = sID;
     }
 
     public String getID() {
-        return m_sID;
+        return id;
     }
 
     public String getName() {
-        return m_sName;
+        return name;
     }
 
     public void setName(String sName) {
-        m_sName = sName;
+        name = sName;
     }
 
     public String getTextTip() {
-        return m_sTextTip;
+        return textTip;
     }
 
     public void setTextTip(String sName) {
-        m_sTextTip = sName;
+        textTip = sName;
     }
 
     public Boolean getCatShowName() {
-        return m_bCatShowName;
+        return catShowName;
     }
 
     public void setCatShowName(Boolean bcatshowname) {
-        m_bCatShowName = bcatshowname;
+        catShowName = bcatshowname;
     }
 
     public BufferedImage getImage() {
-        return m_Image;
+        return image;
     }
 
     public void setImage(BufferedImage img) {
-        m_Image = img;
+        image = img;
+    }
+
+    public String getCatalogOrder() {
+        return catalogOrder;
+    }
+
+    public void setCatalogOrder(String catalogOrder) {
+        this.catalogOrder = catalogOrder;
+    }
+    
+    public String getCatalogColor() {
+        return catalogColor;
+    }
+
+    public void setCatalogColor(String color) {
+        this.catalogColor = color;
+    }
+    
+    public Boolean getCatalogEnabled() {
+        return catalogEnabled;
+    }
+
+    public void setCatalogEnabled(Boolean catalogEnabled) {
+        this.catalogEnabled = catalogEnabled;
     }
 
     @Override
     public String toString() {
-        return m_sName;
+        return name;
     }
 
     public static SerializerRead<CategoryInfo> getSerializerRead() {
-        return new SerializerRead<CategoryInfo>() {
-            @Override
-            public CategoryInfo readValues(DataRead dr) throws BasicException {
-            return new CategoryInfo(dr.getString(1), 
-                dr.getString(2), ImageUtils.readImage(dr.getBytes(3)),
-                dr.getString(4),dr.getBoolean(5));
-        }};
+        return (DataRead dr) -> {
+            CategoryInfo catInfo = new CategoryInfo(
+                dr.getString(1),
+                dr.getString(2),
+                ImageUtils.readImage(dr.getBytes(3)),
+                dr.getString(4),
+                dr.getBoolean(5));
+             
+            catInfo.setCatalogOrder(dr.getString(6));
+            catInfo.setCatalogColor(dr.getString(7));
+            catInfo.setCatalogEnabled(dr.getBoolean(8));
+            
+             return catInfo;
+        };
     }
 }

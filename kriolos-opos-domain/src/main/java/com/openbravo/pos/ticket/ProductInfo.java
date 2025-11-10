@@ -31,15 +31,15 @@ import com.openbravo.data.loader.SerializerRead;
 public class ProductInfo implements IKeyed {
 
     private static final long serialVersionUID = 8712449444103L;
-    private String m_sID;
-    private String m_sRef;
-    private String m_sCode;
-    private String m_sCodetype;
-    private String m_sName;
-    private double m_dPriceBuy;
-    private double m_dPriceSell;
-    private String categoryid;
-    private String taxcategoryid; //Tax Category ID
+    private String id;
+    private String ref;
+    private String code;
+    private String codetype;
+    private String name;
+    private double priceBuy;
+    private double priceSell;
+    private String categoryId;
+    private String taxCategoryId; //Tax Category ID
 
     /**
      * Creates new ProductInfo
@@ -50,10 +50,10 @@ public class ProductInfo implements IKeyed {
      * @param name
      */
     public ProductInfo(String id, String ref, String code, String name) {
-        m_sID = id;
-        m_sRef = ref;
-        m_sCode = code;
-        m_sName = name;
+        this.id = id;
+        this.ref = ref;
+        this.code = code;
+        this.name = name;
     }
 
     /**
@@ -62,7 +62,7 @@ public class ProductInfo implements IKeyed {
      */
     @Override
     public Object getKey() {
-        return m_sID;
+        return id;
     }
 
     /**
@@ -70,11 +70,11 @@ public class ProductInfo implements IKeyed {
      * @param sID
      */
     public void setID(String sID) {
-        m_sID = sID;
+        id = sID;
     }
 
     public String getID() {
-        return m_sID;
+        return id;
     }
 
     /**
@@ -82,11 +82,11 @@ public class ProductInfo implements IKeyed {
      * @return
      */
     public String getRef() {
-        return m_sRef;
+        return ref;
     }
 
     public void setRef(String sRef) {
-        m_sRef = sRef;
+        ref = sRef;
     }
 
     /**
@@ -94,11 +94,11 @@ public class ProductInfo implements IKeyed {
      * @return
      */
     public String getCode() {
-        return m_sCode;
+        return code;
     }
 
     public void setCode(String sCode) {
-        m_sCode = sCode;
+        code = sCode;
     }
 
     /**
@@ -106,56 +106,56 @@ public class ProductInfo implements IKeyed {
      * @return
      */
     public String getName() {
-        return m_sName;
+        return name;
     }
 
     public void setName(String sName) {
-        m_sName = sName;
+        name = sName;
     }
 
     public double getPriceBuy() {
-        return m_dPriceBuy;
+        return priceBuy;
     }
 
     public void setPriceBuy(double m_dPriceBuy) {
-        this.m_dPriceBuy = m_dPriceBuy;
+        this.priceBuy = m_dPriceBuy;
     }
     
     public String getCodetype() {
-        return m_sCodetype;
+        return codetype;
     }
 
     public void setCodetype(String m_sCodetype) {
-        this.m_sCodetype = m_sCodetype;
+        this.codetype = m_sCodetype;
     }
 
     public double getPriceSell() {
-        return m_dPriceSell;
+        return priceSell;
     }
 
     public void setPriceSell(double m_dPriceSell) {
-        this.m_dPriceSell = m_dPriceSell;
+        this.priceSell = m_dPriceSell;
     }
 
     public String getCategoryID() {
-        return categoryid;
+        return categoryId;
     }
 
     public void setCategoryID(String categoryid) {
-        this.categoryid = categoryid;
+        this.categoryId = categoryid;
     }
 
     public String getTaxID() {
-        return taxcategoryid;
+        return taxCategoryId;
     }
 
     public void setTaxID(String taxcategoryid) {
-        this.taxcategoryid = taxcategoryid;
+        this.taxCategoryId = taxcategoryid;
     }
 
     @Override
     public String toString() {
-        return m_sName;
+        return name;
     }
 
     /**

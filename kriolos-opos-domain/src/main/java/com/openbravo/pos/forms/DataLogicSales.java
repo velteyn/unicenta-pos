@@ -65,8 +65,8 @@ import java.util.logging.Logger;
  * @author jackgerrard
  */
 public class DataLogicSales extends BeanFactoryDataSingle {
-    
-    protected Session s;
+
+    protected Session sessionDB;
 
     protected Datas[] auxiliarDatas;
     protected Datas[] stockdiaryDatas;
@@ -89,8 +89,6 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     private static final Logger LOGGER = Logger.getLogger("com.openbravo.pos.forms.DataLogicSales");
 
     private String getCardName;
-    private SentenceExec m_createCat;
-    private SentenceExec m_createSupp;
 
     public DataLogicSales() {
         stockdiaryDatas = new Datas[]{
@@ -192,18 +190,21 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     @Override
     public void init(Session s) {
-        this.s = s;
+        this.sessionDB = s;
+    }
 
-        m_createCat = new StaticSentence(s,
+// Import Creates
+    public final void createCategory(Object[] category) throws BasicException {
+        SentenceExec m_createCat = new StaticSentence(this.sessionDB,
                 "INSERT INTO categories ( ID, NAME, CATSHOWNAME ) "
                 + "VALUES (?, ?, ?)",
-                new SerializerWriteBasic(new Datas[]{
-            Datas.STRING,
-            Datas.STRING,
-            Datas.BOOLEAN})
+                new SerializerWriteBasic(new Datas[]{Datas.STRING, Datas.STRING, Datas.BOOLEAN})
         );
+        m_createCat.exec(category);
+    }
 
-        m_createSupp = new StaticSentence(s,
+    public final void createSupplier(Object[] supplier) throws BasicException {
+        SentenceExec m_createSupp = new StaticSentence(this.sessionDB,
                 "INSERT INTO suppliers ( ID, NAME, SEARCHKEY, VISIBLE ) "
                 + "VALUES (?, ?, ?, ?)",
                 new SerializerWriteBasic(new Datas[]{
@@ -212,14 +213,6 @@ public class DataLogicSales extends BeanFactoryDataSingle {
             Datas.STRING,
             Datas.BOOLEAN})
         );
-    }
-
-// Import Creates
-    public final void createCategory(Object[] category) throws BasicException {
-        m_createCat.exec(category);
-    }
-
-    public final void createSupplier(Object[] supplier) throws BasicException {
         m_createSupp.exec(supplier);
     }
 // End Import Creates
@@ -239,7 +232,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final ProductInfoExt getProductInfo(String id) throws BasicException {
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "REFERENCE, "
@@ -283,7 +276,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final ProductInfoExt getProductInfoByCode(String sCode) throws BasicException {
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "REFERENCE, "
@@ -328,7 +321,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     public final ProductInfoExt getProductInfoByShortCode(String sCode) throws BasicException {
 
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "REFERENCE, "
@@ -380,7 +373,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
         specific to allow for other 12 digit codes that may be in use at positions 234567
         last digit (position 7) can be used to identify COUPON (5 or 9) - FUTURE  
          */
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "REFERENCE, "
@@ -425,7 +418,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final ProductInfoExt getProductInfoByReference(String sReference) throws BasicException {
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "REFERENCE, "
@@ -467,16 +460,18 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return @throws BasicException
      */
     public final List<CategoryInfo> getRootCategories() throws BasicException {
-        return new PreparedSentence<Void, CategoryInfo>(s,
+        return new PreparedSentence<Void, CategoryInfo>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
                 + "IMAGE, "
                 + "TEXTTIP, "
                 + "CATSHOWNAME, "
-                + "CATORDER "
+                + "CATORDER, "
+                + "CATALOGCOLOR, "
+                + "CATALOGENABLED "
                 + "FROM categories "
-                + "WHERE PARENTID IS NULL AND CATSHOWNAME = " + s.DB.TRUE() + " "
+                + "WHERE PARENTID IS NULL AND CATSHOWNAME = " + sessionDB.DB.TRUE() + " "
                 + "ORDER BY CATORDER, NAME",
                 null,
                 CategoryInfo.getSerializerRead()).list();
@@ -489,15 +484,18 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final List<CategoryInfo> getSubcategories(String category) throws BasicException {
-        return new PreparedSentence<String, CategoryInfo>(s,
+        return new PreparedSentence<String, CategoryInfo>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
                 + "IMAGE, "
                 + "TEXTTIP, "
                 + "CATSHOWNAME, "
-                + "CATORDER "
-                + "FROM categories WHERE PARENTID = ? "
+                + "CATORDER, "
+                + "CATALOGCOLOR, "
+                + "CATALOGENABLED "
+                + "FROM categories "
+                + "WHERE PARENTID = ? "
                 + "ORDER BY CATORDER, NAME",
                 SerializerWriteString.INSTANCE,
                 CategoryInfo.getSerializerRead()).list(category);
@@ -510,7 +508,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public List<ProductInfoExt> getProductCatalog(String category) throws BasicException {
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "P.ID, "
                 + "P.REFERENCE, "
@@ -556,7 +554,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public List<ProductInfoExt> getProductComposite(String id) throws BasicException {
-        return new PreparedSentence<String, ProductInfoExt>(s,
+        return new PreparedSentence<String, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "P.ID, "
                 + "P.REFERENCE, "
@@ -591,7 +589,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 + "FROM products P, "
                 + "products_cat O, products_com M "
                 + "WHERE P.ID = O.PRODUCT AND P.ID = M.PRODUCT2 AND M.PRODUCT = ? "
-                + "AND P.ISCOM = " + s.DB.TRUE() + " "
+                + "AND P.ISCOM = " + sessionDB.DB.TRUE() + " "
                 + "ORDER BY O.CATORDER, P.NAME",
                 SerializerWriteString.INSTANCE,
                 ProductInfoExt.getSerializerRead()).list(id);
@@ -602,7 +600,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return @throws BasicException
      */
     public List<ProductInfoExt> getProductConstant() throws BasicException {
-        return new PreparedSentence<Void, ProductInfoExt>(s,
+        return new PreparedSentence<Void, ProductInfoExt>(sessionDB,
                 "SELECT "
                 + "products.ID, "
                 + "products.REFERENCE, "
@@ -635,7 +633,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 + "products.UOM, "
                 + "products.MEMODATE "
                 + "FROM categories INNER JOIN products ON (products.CATEGORY = categories.ID) "
-                + "WHERE products.ISCONSTANT = " + s.DB.TRUE() + " "
+                + "WHERE products.ISCONSTANT = " + sessionDB.DB.TRUE() + " "
                 + "ORDER BY categories.NAME, products.NAME",
                 null,
                 ProductInfoExt.getSerializerRead()).list();
@@ -649,14 +647,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final CategoryInfo getCategoryInfo(String id) throws BasicException {
-        return new PreparedSentence<String, CategoryInfo>(s,
+        return new PreparedSentence<String, CategoryInfo>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
                 + "IMAGE, "
                 + "TEXTTIP, "
                 + "CATSHOWNAME, "
-                + "CATORDER "
+                + "CATORDER, "
+                + "CATALOGCOLOR, "
+                + "CATALOGENABLED "
                 + "FROM categories "
                 + "WHERE ID = ? "
                 + "ORDER BY CATORDER, NAME",
@@ -672,7 +672,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final List<CategoryStock> getCategorysProductList(String pId) throws BasicException {
-        return new PreparedSentence<String, CategoryStock>(s,
+        return new PreparedSentence<String, CategoryStock>(sessionDB,
                 "SELECT products.ID, "
                 + "products.NAME AS Name, "
                 + "products.CODE AS Barcode, "
@@ -690,7 +690,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<ProductInfoExt> getProductList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 new QBFBuilder(
                         "SELECT "
                         + "ID, "
@@ -741,7 +741,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public SentenceList<ProductInfoExt> getProductListNormal() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 new QBFBuilder(
                         "SELECT "
                         + "ID, "
@@ -775,7 +775,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         + "UOM, "
                         + "MEMODATE "
                         + "FROM products "
-                        + "WHERE ISCOM = " + s.DB.FALSE() + " AND ?(QBF_FILTER) ORDER BY REFERENCE",
+                        + "WHERE ISCOM = " + sessionDB.DB.FALSE() + " AND ?(QBF_FILTER) ORDER BY REFERENCE",
                         new String[]{"NAME", "PRICEBUY", "PRICESELL", "CATEGORY", "CODE"}),
                 new SerializerWriteBasic(new Datas[]{
             Datas.OBJECT, Datas.STRING,
@@ -791,7 +791,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public SentenceList<ProductInfo> getProductsList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "REFERENCE, "
@@ -829,7 +829,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public SentenceList<ProductInfoExtA> getProductList2() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 new QBFBuilder(
                         "SELECT "
                         + "products.id, "
@@ -869,7 +869,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public SentenceList<ProductInfoExt> getProductListAuxiliar() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 new QBFBuilder(
                         "SELECT "
                         + "ID, "
@@ -903,7 +903,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         + "UOM, "
                         + "MEMODATE "
                         + "FROM products "
-                        + "WHERE ISCOM = " + s.DB.TRUE() + " AND ?(QBF_FILTER) "
+                        + "WHERE ISCOM = " + sessionDB.DB.TRUE() + " AND ?(QBF_FILTER) "
                         + "ORDER BY REFERENCE", new String[]{"NAME", "PRICEBUY", "PRICESELL", "CATEGORY", "CODE"}),
                 new SerializerWriteBasic(new Datas[]{
             Datas.OBJECT, Datas.STRING,
@@ -921,7 +921,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final List<ProductsBundleInfo> getProductsBundle(String productId) throws BasicException {
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "PRODUCT, "
@@ -942,7 +942,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     public final ProductStock getProductStockState(String pId, String location) throws BasicException {
 
-        PreparedSentence preparedSentence = new PreparedSentence(s,
+        PreparedSentence preparedSentence = new PreparedSentence(sessionDB,
                 "SELECT "
                 + "products.id, "
                 + "locations.id as Location, "
@@ -977,7 +977,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     @SuppressWarnings("unchecked")
     public final List<ProductStock> getProductStockList(String pId) throws BasicException {
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "SELECT products.id, "
                 + "locations.name AS Location, "
                 + "ANY_VALUE(stockcurrent.units) AS Current, "
@@ -1011,7 +1011,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     @SuppressWarnings("unchecked")
     public final List<ReprintTicketInfo> getReprintTicketList() throws BasicException {
-        return (List<ReprintTicketInfo>) new StaticSentence(s,
+        return (List<ReprintTicketInfo>) new StaticSentence(sessionDB,
                 "SELECT "
                 + "T.TICKETID, "
                 + "T.TICKETTYPE, "
@@ -1048,7 +1048,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
         if (Id == null) {
             return null;
         } else {
-            Object[] ticketInfoObjArray = (Object[]) new StaticSentence(s,
+            Object[] ticketInfoObjArray = (Object[]) new StaticSentence(sessionDB,
                     "SELECT "
                     + "T.TICKETID, "
                     + "SUM(PM.TOTAL), "
@@ -1070,7 +1070,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
 
     //Tickets and Receipt list
     public SentenceList<FindTicketsInfo> getTicketsList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 new QBFBuilder(
                         "SELECT "
                         + "T.TICKETID, "
@@ -1112,7 +1112,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<TaxCategoryInfo> getUserList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME "
@@ -1129,7 +1129,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<TaxInfo> getTaxList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
@@ -1154,22 +1154,33 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     /**
-     *
-     * @return
+     * @deprecated @return
      */
     public final SentenceList<CategoryInfo> getCategoriesList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
                 + "IMAGE, "
                 + "TEXTTIP, "
                 + "CATSHOWNAME, "
-                + "CATORDER "
+                + "CATORDER, "
+                + "CATALOGCOLOR, "
+                + "CATALOGENABLED "
                 + "FROM categories "
                 + "ORDER BY NAME",
                 null,
                 CategoryInfo.getSerializerRead());
+    }
+
+    public final List<CategoryInfo> getCategoriesListAll() {
+        List<CategoryInfo> list = null;
+        try {
+            list = this.getCategoriesList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get categories list", ex);
+        }
+        return list;
     }
 
     /**
@@ -1178,14 +1189,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<CategoryInfo> getCategoriesList_1() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
                 + "IMAGE, "
                 + "TEXTTIP, "
                 + "CATSHOWNAME, "
-                + "CATORDER "
+                + "CATORDER, "
+                + "CATALOGCOLOR, "
+                + "CATALOGENABLED "
                 + "FROM categories "
                 + "WHERE PARENTID IS NULL "
                 + "ORDER BY NAME",
@@ -1198,7 +1211,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<SupplierInfo> getSuppList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "SEARCHKEY, "
@@ -1217,7 +1230,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<TaxCustCategoryInfo> getTaxCustCategoriesList() {
-        return new StaticSentence<>(s,
+        return new StaticSentence<>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME "
@@ -1236,7 +1249,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public final CustomerInfoExt getCustomerInfo(String id) throws BasicException {
-        return new PreparedSentence<String, CustomerInfoExt>(s,
+        return new PreparedSentence<String, CustomerInfoExt>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "SEARCHKEY, "
@@ -1280,7 +1293,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     @SuppressWarnings("unchecked")
     public final List<CustomerTransaction> getCustomersTransactionList(String cId) throws BasicException {
 
-        return new PreparedSentence<>(s,
+        return new PreparedSentence<>(sessionDB,
                 "SELECT tickets.TICKETID, "
                 + "products.NAME AS PNAME, "
                 + "SUM(ticketlines.UNITS) AS UNITS, "
@@ -1307,7 +1320,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<TaxCategoryInfo> getTaxCategoriesList() {
-        return new StaticSentence<>(s,
+        return new StaticSentence<>(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME "
@@ -1322,7 +1335,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<AttributeSetInfo> getAttributeSetList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME "
@@ -1337,7 +1350,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<LocationInfo> getLocationsList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "NAME, "
@@ -1352,7 +1365,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<FloorsInfo> getFloorsList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT ID, NAME FROM floors ORDER BY NAME",
                 null,
                 new SerializerReadClass(FloorsInfo.class));
@@ -1363,7 +1376,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList<FloorsInfo> getFloorTablesList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT ID, NAME, SEATS FROM places ORDER BY NAME",
                 null,
                 new SerializerReadClass(FloorsInfo.class));
@@ -1376,7 +1389,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public CustomerInfoExt findCustomerExt(String card) throws BasicException {
-        return (CustomerInfoExt) new PreparedSentence(s,
+        return (CustomerInfoExt) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "TAXID, "
@@ -1406,7 +1419,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 + "DISCOUNT, "
                 + "MEMODATE "
                 + "FROM customers "
-                + "WHERE CARD = ? AND VISIBLE = " + s.DB.TRUE() + " "
+                + "WHERE CARD = ? AND VISIBLE = " + sessionDB.DB.TRUE() + " "
                 + "ORDER BY NAME",
                 SerializerWriteString.INSTANCE,
                 new CustomerExtRead()).find(card);
@@ -1419,7 +1432,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public CustomerInfoExt findCustomerName(String name) throws BasicException {
-        return (CustomerInfoExt) new PreparedSentence(s,
+        return (CustomerInfoExt) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "SEARCHKEY, "
@@ -1449,7 +1462,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 + "DISCOUNT, "
                 + "MEMODATE "
                 + "FROM customers "
-                + "WHERE NAME = ? AND VISIBLE = " + s.DB.TRUE() + " "
+                + "WHERE NAME = ? AND VISIBLE = " + sessionDB.DB.TRUE() + " "
                 + "ORDER BY NAME",
                 SerializerWriteString.INSTANCE,
                 new CustomerExtRead()).find(name);
@@ -1462,7 +1475,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public CustomerInfoExt loadCustomerExt(String id) throws BasicException {
-        return (CustomerInfoExt) new PreparedSentence(s,
+        return (CustomerInfoExt) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "SEARCHKEY, "
@@ -1504,7 +1517,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public CustomerInfoExt qCustomerExt(String id) throws BasicException {
-        return (CustomerInfoExt) new PreparedSentence(s,
+        return (CustomerInfoExt) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "SEARCHKEY, "
@@ -1546,7 +1559,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     public final boolean isCashActive(String id) throws BasicException {
 
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "SELECT MONEY FROM closedcash WHERE DATEEND IS NULL AND MONEY = ?",
                 SerializerWriteString.INSTANCE,
                 SerializerReadString.INSTANCE).find(id)
@@ -1565,7 +1578,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
         SerializerWrite<Object[]> sw = new SerializerWriteBasicExt(new Datas[]{Datas.INT, Datas.INT}, new int[]{0, 1});
         Object[] params = new Object[]{tickettype, ticketid};
 
-        TicketInfo ticket = (TicketInfo) new PreparedSentence(s,
+        TicketInfo ticket = (TicketInfo) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "T.ID, "
                 + "T.TICKETTYPE, "
@@ -1593,7 +1606,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                     ? null
                     : loadCustomerExt(customerid));
 
-            ticket.setLines(new PreparedSentence(s,
+            ticket.setLines(new PreparedSentence(sessionDB,
                     "SELECT L.TICKET, L.LINE, L.PRODUCT, L.ATTRIBUTESETINSTANCE_ID, "
                     + "L.UNITS, L.PRICE, T.ID, T.NAME, T.CATEGORY, T.CUSTCATEGORY, "
                     + "T.PARENTID, T.RATE, T.RATECASCADE, T.RATEORDER, L.ATTRIBUTES "
@@ -1602,7 +1615,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                     SerializerWriteString.INSTANCE,
                     new SerializerReadClass(TicketLineInfo.class)).list(ticket.getId()));
 
-            ticket.setPayments(new PreparedSentence(s,
+            ticket.setPayments(new PreparedSentence(sessionDB,
                     "SELECT PAYMENT, TOTAL, TRANSID, TENDERED, CARDNAME FROM payments WHERE RECEIPT = ?",
                     SerializerWriteString.INSTANCE,
                     new SerializerReadClass(PaymentInfoTicket.class)).list(ticket.getId()));
@@ -1611,14 +1624,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     /**
-     * Save Ticket information (Receipt, Payments, Ticket, TaxLine, TicketLine, Customer debt, Voucher)
+     * Save Ticket information (Receipt, Payments, Ticket, TaxLine, TicketLine,
+     * Customer debt, Voucher)
+     *
      * @param ticket
      * @param location
      * @throws BasicException
      */
     public final void saveTicket(final TicketInfo ticket, final String location) throws BasicException {
 
-        Transaction t = new Transaction(s) {
+        Transaction t = new Transaction(sessionDB) {
             @Override
             public Object transact() throws BasicException {
 
@@ -1638,7 +1653,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                             ticket.setTicketId(getNextTicketPaymentIndex());
                             break;
                         default:
-                            throw new BasicException("Ticket with unsupported TicketType. TicketType is: "+ticket.getTicketType());
+                            throw new BasicException("Ticket with unsupported TicketType. TicketType is: " + ticket.getTicketType());
                     }
                 }
 
@@ -1664,7 +1679,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                     ticket.getProperty("person")};
 
                 //Receipt Prepared
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "INSERT INTO receipts (ID, MONEY, DATENEW, ATTRIBUTES, PERSON) VALUES (?, ?, ?, ?, ?)",
                         sw)
                         .exec(params);
@@ -1681,14 +1696,14 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                     ticket.getCustomerId(),
                     ticket.getTicketStatus()
                 };
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "INSERT INTO tickets (ID, TICKETTYPE, TICKETID, PERSON, CUSTOMER, STATUS) "
                         + "VALUES (?, ?, ?, ?, ?, ?)",
                         sw)
                         .exec(params);
 
                 //Ticket: Update status (This is Receipt or TicketType: 0)
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "UPDATE tickets SET STATUS = ? "
                         + "WHERE TICKETTYPE = 0 AND TICKETID = ?",
                         SerializerWriteParams.INSTANCE)
@@ -1702,7 +1717,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         });
 
                 //Ticket Lines
-                SentenceExec ticketlineinsert = new PreparedSentenceExec(s,
+                SentenceExec ticketlineinsert = new PreparedSentenceExec(sessionDB,
                         "INSERT INTO ticketlines (TICKET, LINE, "
                         + "PRODUCT, ATTRIBUTESETINSTANCE_ID, "
                         + "UNITS, PRICE, TAXID, ATTRIBUTES) "
@@ -1729,7 +1744,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
 
                 //Payments
                 final Payments payments = new Payments();
-                SentenceExec paymentinsert = new PreparedSentence(s,
+                SentenceExec paymentinsert = new PreparedSentence(sessionDB,
                         "INSERT INTO payments (ID, RECEIPT, PAYMENT, TOTAL, TRANSID, RETURNMSG, "
                         + "TENDERED, CARDNAME, VOUCHER) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         SerializerWriteParams.INSTANCE);
@@ -1745,7 +1760,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                     getRetMsg = payments.getRtnMessage(pName);
                     getVoucher = payments.getVoucher(pName);
                     payments.removeFirst(pName);
-                    
+
                     paymentinsert.exec(new DataParams() {
 
                         @Override
@@ -1785,7 +1800,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 }
 
                 //TAX Lines
-                SentenceExec taxlinesinsert = new PreparedSentence(s,
+                SentenceExec taxlinesinsert = new PreparedSentence(sessionDB,
                         "INSERT INTO taxlines (ID, RECEIPT, TAXID, BASE, AMOUNT)  "
                         + "VALUES (?, ?, ?, ?, ?)",
                         SerializerWriteParams.INSTANCE);
@@ -1820,7 +1835,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     public final void deleteTicket(final TicketInfo ticket, final String location) throws BasicException {
 
         Transaction t;
-        t = new Transaction(s) {
+        t = new Transaction(sessionDB) {
             @Override
             public Object transact() throws BasicException {
 
@@ -1883,19 +1898,19 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 }
 
                 // and delete the receipt
-                new StaticSentence(s,
+                new StaticSentence(sessionDB,
                         "DELETE FROM taxlines WHERE RECEIPT = ?",
                         SerializerWriteString.INSTANCE).exec(ticket.getId());
-                new StaticSentence(s,
+                new StaticSentence(sessionDB,
                         "DELETE FROM payments WHERE RECEIPT = ?",
                         SerializerWriteString.INSTANCE).exec(ticket.getId());
-                new StaticSentence(s,
+                new StaticSentence(sessionDB,
                         "DELETE FROM ticketlines WHERE TICKET = ?",
                         SerializerWriteString.INSTANCE).exec(ticket.getId());
-                new StaticSentence(s,
+                new StaticSentence(sessionDB,
                         "DELETE FROM tickets WHERE ID = ?",
                         SerializerWriteString.INSTANCE).exec(ticket.getId());
-                new StaticSentence(s,
+                new StaticSentence(sessionDB,
                         "DELETE FROM receipts WHERE ID = ?",
                         SerializerWriteString.INSTANCE).exec(ticket.getId());
                 return null;
@@ -1909,7 +1924,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return @throws BasicException
      */
     public final Integer getNextPickupIndex() throws BasicException {
-        return (Integer) s.DB.getSequenceSentence(s, "pickup_number").find();
+        return (Integer) sessionDB.DB.getSequenceSentence(sessionDB, "pickup_number").find();
     }
 
     /**
@@ -1917,7 +1932,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return @throws BasicException
      */
     public final Integer getNextTicketIndex() throws BasicException {
-        return (Integer) s.DB.getSequenceSentence(s, "ticketsnum").find();
+        return (Integer) sessionDB.DB.getSequenceSentence(sessionDB, "ticketsnum").find();
     }
 
     /**
@@ -1925,7 +1940,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return @throws BasicException
      */
     public final Integer getNextTicketRefundIndex() throws BasicException {
-        return (Integer) s.DB.getSequenceSentence(s, "ticketsnum_refund").find();
+        return (Integer) sessionDB.DB.getSequenceSentence(sessionDB, "ticketsnum_refund").find();
     }
 
     /**
@@ -1933,12 +1948,12 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return @throws BasicException
      */
     public final Integer getNextTicketPaymentIndex() throws BasicException {
-        return (Integer) s.DB.getSequenceSentence(s, "ticketsnum_payment").find();
+        return (Integer) sessionDB.DB.getSequenceSentence(sessionDB, "ticketsnum_payment").find();
     }
 
 // JG 3 Feb 16 - Product load speedup
     public final SentenceFind getProductImage() {
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "SELECT IMAGE FROM products WHERE ID = ?",
                 SerializerWriteString.INSTANCE,
                 (DataRead dr) -> ImageUtils.readImage(dr.getBytes(1)));
@@ -1950,7 +1965,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceList getProductCatQBF() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 new QBFBuilder(
                         "SELECT "
                         + "P.ID, "
@@ -1966,7 +1981,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         + "P.STOCKCOST, "
                         + "P.STOCKVOLUME, "
                         // JG 3 feb 16 speedup  + "P.IMAGE, "
-                        + s.DB.CHAR_NULL() + ","
+                        + sessionDB.DB.CHAR_NULL() + ","
                         + "P.ISCOM, "
                         + "P.ISSCALE, "
                         + "P.ISCONSTANT, "
@@ -1986,8 +2001,8 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         + "P.MEMODATE, "
                         + "CASE WHEN "
                         + "C.PRODUCT IS NULL "
-                        + "THEN " + s.DB.FALSE()
-                        + " ELSE " + s.DB.TRUE()
+                        + "THEN " + sessionDB.DB.FALSE()
+                        + " ELSE " + sessionDB.DB.TRUE()
                         + " END, "
                         + "C.CATORDER "
                         + "FROM products P LEFT OUTER JOIN products_cat C "
@@ -1997,7 +2012,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         new String[]{
                             "P.NAME", "P.PRICEBUY", "P.PRICESELL", "P.CATEGORY", "P.CODE"}),
                 new SerializerWriteBasic(new Datas[]{
-                    Datas.OBJECT, Datas.STRING, Datas.OBJECT, Datas.DOUBLE, Datas.OBJECT, Datas.DOUBLE, Datas.OBJECT, Datas.STRING, Datas.OBJECT, Datas.STRING}
+            Datas.OBJECT, Datas.STRING, Datas.OBJECT, Datas.DOUBLE, Datas.OBJECT, Datas.DOUBLE, Datas.OBJECT, Datas.STRING, Datas.OBJECT, Datas.STRING}
                 ),
                 productsRow.getSerializerRead());
     }
@@ -2007,10 +2022,10 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getProductCatInsert() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                int i = new PreparedSentenceExec(s,
+                int i = new PreparedSentenceExec(sessionDB,
                         "INSERT INTO products ("
                         + "ID, "
                         + "REFERENCE, "
@@ -2058,7 +2073,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         .exec(params);
 
                 if (i > 0 && ((Boolean) params[30])) {
-                    return new PreparedSentence(s,
+                    return new PreparedSentence(sessionDB,
                             "INSERT INTO products_cat (PRODUCT, CATORDER) VALUES (?, ?)",
                             new SerializerWriteBasicExt(productsRow.getDatas(), new int[]{0, 31}))
                             .exec(params);
@@ -2105,11 +2120,11 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getProductCatUpdate() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
 
-                int i = new PreparedSentenceExec(s,
+                int i = new PreparedSentenceExec(sessionDB,
                         "UPDATE products SET "
                         + "ID = ?, "
                         + "REFERENCE = ?, "
@@ -2154,16 +2169,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         .exec(params);
                 if (i > 0) {
                     if (((Boolean) params[30])) {
-                        if (new PreparedSentence(s,
+                        if (new PreparedSentence(sessionDB,
                                 "UPDATE products_cat SET CATORDER = ? WHERE PRODUCT = ?",
                                 new SerializerWriteBasicExt(productsRow.getDatas(),
                                         new int[]{31, 0})).exec(params) == 0) {
-                            new PreparedSentence(s,
+                            new PreparedSentence(sessionDB,
                                     "INSERT INTO products_cat (PRODUCT, CATORDER) VALUES (?, ?)",
                                     new SerializerWriteBasicExt(productsRow.getDatas(), new int[]{0, 31})).exec(params);
                         }
                     } else {
-                        new PreparedSentence(s,
+                        new PreparedSentence(sessionDB,
                                 "DELETE FROM products_cat WHERE PRODUCT = ?",
                                 new SerializerWriteBasicExt(productsRow.getDatas(), new int[]{0})).exec(params);
                     }
@@ -2178,13 +2193,13 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getProductCatDelete() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "DELETE FROM products_cat WHERE PRODUCT = ?",
                         new SerializerWriteBasicExt(productsRow.getDatas(), new int[]{0})).exec(params);
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "DELETE FROM products WHERE ID = ?",
                         new SerializerWriteBasicExt(productsRow.getDatas(), new int[]{0})).exec(params);
             }
@@ -2197,7 +2212,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     public final SentenceExec getDebtUpdate() {
 
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "UPDATE customers SET CURDEBT = ?, CURDATE = ? WHERE ID = ?",
                 SerializerWriteParams.INSTANCE);
     }
@@ -2208,7 +2223,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getStockDiaryInsert() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             /**
              * @param params[0] String STOCKDIARY.ID
@@ -2231,7 +2246,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 adjustParams[3] = paramsArray[6];                               //units
                 adjustStock(adjustParams);
 
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "INSERT INTO stockdiary (ID, DATENEW, REASON, LOCATION, "
                         + "PRODUCT, ATTRIBUTESETINSTANCE_ID, "
                         + "UNITS, PRICE, AppUser) "
@@ -2248,29 +2263,29 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getStockDiaryInsert1() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
                 int updateresult = params[5] == null
-                        ? new PreparedSentence(s,
+                        ? new PreparedSentence(sessionDB,
                                 "UPDATE stockcurrent SET UNITS = (UNITS + ?) "
                                 + "WHERE LOCATION = ? AND PRODUCT = ? "
                                 + "AND ATTRIBUTESETINSTANCE_ID IS NULL",
                                 new SerializerWriteBasicExt(stockdiaryDatas, new int[]{6, 3, 4})).exec(params)
-                        : new PreparedSentence(s,
+                        : new PreparedSentence(sessionDB,
                                 "UPDATE stockcurrent SET UNITS = (UNITS + ?) "
                                 + "WHERE LOCATION = ? AND PRODUCT = ? "
                                 + "AND ATTRIBUTESETINSTANCE_ID = ?",
                                 new SerializerWriteBasicExt(stockdiaryDatas, new int[]{6, 3, 4, 5})).exec(params);
 
                 if (updateresult == 0) {
-                    new PreparedSentence(s,
+                    new PreparedSentence(sessionDB,
                             "INSERT INTO stockcurrent (LOCATION, PRODUCT, "
                             + "ATTRIBUTESETINSTANCE_ID, UNITS) "
                             + "VALUES (?, ?, ?, ?)",
                             new SerializerWriteBasicExt(stockdiaryDatas, new int[]{3, 4, 5, 6})).exec(params);
                 }
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "INSERT INTO stockdiary (ID, DATENEW, REASON, LOCATION, PRODUCT, "
                         + "ATTRIBUTESETINSTANCE_ID, UNITS, PRICE, AppUser, "
                         + "SUPPLIER, SUPPLIERDOC) "
@@ -2287,29 +2302,29 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getStockDiaryDelete() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
                 int updateresult = ((Object[]) params)[5] == null // if ATTRIBUTESETINSTANCE_ID is null
-                        ? new PreparedSentence(s,
+                        ? new PreparedSentence(sessionDB,
                                 "UPDATE stockcurrent SET UNITS = (UNITS - ?) "
                                 + "WHERE LOCATION = ? AND PRODUCT = ? "
                                 + "AND ATTRIBUTESETINSTANCE_ID IS NULL",
                                 new SerializerWriteBasicExt(stockdiaryDatas, new int[]{6, 3, 4})).exec(params)
-                        : new PreparedSentence(s,
+                        : new PreparedSentence(sessionDB,
                                 "UPDATE stockcurrent SET UNITS = (UNITS - ?) "
                                 + "WHERE LOCATION = ? AND PRODUCT = ? "
                                 + "AND ATTRIBUTESETINSTANCE_ID = ?",
                                 new SerializerWriteBasicExt(stockdiaryDatas, new int[]{6, 3, 4, 5})).exec(params);
 
                 if (updateresult == 0) {
-                    new PreparedSentence(s,
+                    new PreparedSentence(sessionDB,
                             "INSERT INTO stockcurrent (LOCATION, PRODUCT, "
                             + "ATTRIBUTESETINSTANCE_ID, UNITS) "
                             + "VALUES (?, ?, ?, -(?))",
                             new SerializerWriteBasicExt(stockdiaryDatas, new int[]{3, 4, 5, 6})).exec(params);
                 }
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "DELETE FROM stockdiary WHERE ID = ?",
                         new SerializerWriteBasicExt(stockdiaryDatas, new int[]{0})).exec(params);
             }
@@ -2333,14 +2348,14 @@ public class DataLogicSales extends BeanFactoryDataSingle {
         } else {
 
             int updateresult = ((Object[]) params)[2] == null
-                    ? new PreparedSentence(s,
+                    ? new PreparedSentence(sessionDB,
                             "UPDATE stockcurrent SET UNITS = (UNITS + ?) "
                             + "WHERE LOCATION = ? AND PRODUCT = ? "
                             + "AND ATTRIBUTESETINSTANCE_ID IS NULL",
                             new SerializerWriteBasicExt(stockAdjustDatas,
                                     new int[]{3, 1, 0}))
                             .exec(params)
-                    : new PreparedSentence(s,
+                    : new PreparedSentence(sessionDB,
                             "UPDATE stockcurrent SET UNITS = (UNITS + ?) "
                             + "WHERE LOCATION = ? AND PRODUCT = ? "
                             + "AND ATTRIBUTESETINSTANCE_ID = ?",
@@ -2350,7 +2365,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
 
             if (updateresult == 0) {
 
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "INSERT INTO stockcurrent (LOCATION, PRODUCT, "
                         + "ATTRIBUTESETINSTANCE_ID, UNITS) "
                         + "VALUES (?, ?, ?, ?)",
@@ -2366,15 +2381,15 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getPaymentMovementInsert() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "INSERT INTO receipts (ID, MONEY, DATENEW) "
                         + "VALUES (?, ?, ?)",
                         new SerializerWriteBasicExt(paymenttabledatas,
                                 new int[]{0, 1, 2})).exec(params);
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "INSERT INTO payments (ID, RECEIPT, PAYMENT, TOTAL, NOTES) "
                         + "VALUES (?, ?, ?, ?, ?)",
                         new SerializerWriteBasicExt(paymenttabledatas,
@@ -2388,13 +2403,13 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getPaymentMovementDelete() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                new PreparedSentence(s,
+                new PreparedSentence(sessionDB,
                         "DELETE FROM payments WHERE ID = ?",
                         new SerializerWriteBasicExt(paymenttabledatas, new int[]{3})).exec(params);
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "DELETE FROM receipts WHERE ID = ?",
                         new SerializerWriteBasicExt(paymenttabledatas, new int[]{0})).exec(params);
             }
@@ -2412,11 +2427,11 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     public final double findProductStock(String warehouse, String id, String attsetinstid) throws BasicException {
 
         PreparedSentence p = attsetinstid == null
-                ? new PreparedSentence(s, "SELECT UNITS FROM stockcurrent "
+                ? new PreparedSentence(sessionDB, "SELECT UNITS FROM stockcurrent "
                         + "WHERE LOCATION = ? AND PRODUCT = ? AND ATTRIBUTESETINSTANCE_ID IS NULL",
                         new SerializerWriteBasic(Datas.STRING, Datas.STRING),
                         SerializerReadDouble.INSTANCE)
-                : new PreparedSentence(s, "SELECT UNITS FROM stockcurrent "
+                : new PreparedSentence(sessionDB, "SELECT UNITS FROM stockcurrent "
                         + "WHERE LOCATION = ? AND PRODUCT = ? AND ATTRIBUTESETINSTANCE_ID = ?",
                         new SerializerWriteBasic(Datas.STRING, Datas.STRING, Datas.STRING),
                         SerializerReadDouble.INSTANCE);
@@ -2425,32 +2440,48 @@ public class DataLogicSales extends BeanFactoryDataSingle {
         return d == null ? 0.0 : d;
     }
 
-    public final SentenceExec getCatalogCategoryAdd() {
-        return new StaticSentence(s,
-                "INSERT INTO products_cat(PRODUCT, CATORDER) SELECT ID, " + s.DB.INTEGER_NULL() + " FROM products WHERE CATEGORY = ?",
+    /**
+     * Add all product from a category to Catalog
+     *
+     * @param categoryId
+     * @return num added of products
+     */
+    public final int addProductsToCatalogWithCategoryId(String categoryId) throws BasicException {
+        StaticSentence sentence = new StaticSentence(sessionDB,
+                "INSERT INTO products_cat(PRODUCT, CATORDER) SELECT ID, " + sessionDB.DB.INTEGER_NULL()
+                + " FROM products WHERE CATEGORY = ?",
                 SerializerWriteString.INSTANCE);
+
+        return sentence.exec(categoryId);
     }
 
-    public final SentenceExec getCatalogCategoryDel() {
-        return new StaticSentence(s,
-                "DELETE FROM products_cat WHERE PRODUCT = IN (SELECT ID "
+    /**
+     *
+     * @param categoryId
+     * @return number of removed products
+     */
+    public final int removeProductsFromCatalogWithCategoryId(String categoryId) throws BasicException {
+        StaticSentence sentence = new StaticSentence(sessionDB,
+                "DELETE FROM products_cat WHERE PRODUCT IN (SELECT ID "
                 + "FROM products WHERE CATEGORY = ?)",
                 SerializerWriteString.INSTANCE);
+
+        return sentence.exec(categoryId);
     }
 
     public final TableDefinition getTableCategories() {
-        return new TableDefinition(s,
+        return new TableDefinition(sessionDB,
                 "categories",
-                new String[]{"ID", "NAME", "PARENTID", "IMAGE", "TEXTTIP", "CATSHOWNAME", "CATORDER"},
-                new String[]{"ID", AppLocal.getIntString("label.name"), "", AppLocal.getIntString("label.image")},
-                new Datas[]{Datas.STRING, Datas.STRING, Datas.STRING, Datas.IMAGE, Datas.STRING, Datas.BOOLEAN, Datas.STRING},
-                new Formats[]{Formats.STRING, Formats.STRING, Formats.STRING, Formats.NULL, Formats.STRING, Formats.BOOLEAN, Formats.STRING},
+                new String[]{"ID", "NAME", "PARENTID", "IMAGE", "TEXTTIP", "CATSHOWNAME", "CATORDER", "CATALOGCOLOR", "CATALOGENABLED"},
+                new String[]{"ID", AppLocal.getIntString("label.name"), "", AppLocal.getIntString("label.image"), "", "", "", "", ""},
+                new Datas[]{Datas.STRING, Datas.STRING, Datas.STRING, Datas.IMAGE, Datas.STRING, Datas.BOOLEAN, Datas.STRING, Datas.STRING, Datas.BOOLEAN},
+                new Formats[]{Formats.STRING, Formats.STRING, Formats.STRING, Formats.NULL, Formats.STRING, Formats.BOOLEAN, Formats.STRING, Formats.STRING, Formats.BOOLEAN},
                 new int[]{0}
         );
     }
 
     public final TableDefinition getTableTaxes() {
-        return new TableDefinition(s,
+        return new TableDefinition(sessionDB,
                 "taxes",
                 new String[]{"ID", "NAME", "CATEGORY", "CUSTCATEGORY", "PARENTID", "RATE", "RATECASCADE", "RATEORDER"},
                 new String[]{"ID", AppLocal.getIntString("label.name"), AppLocal.getIntString("label.taxcategory"), AppLocal.getIntString("label.custtaxcategory"), AppLocal.getIntString("label.taxparent"), AppLocal.getIntString("label.dutyrate"), AppLocal.getIntString("label.cascade"), AppLocal.getIntString("label.order")},
@@ -2461,7 +2492,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public final TableDefinition getTableTaxCustCategories() {
-        return new TableDefinition(s,
+        return new TableDefinition(sessionDB,
                 "taxcustcategories",
                 new String[]{"ID", "NAME"},
                 new String[]{"ID", AppLocal.getIntString("label.name")},
@@ -2476,7 +2507,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final TableDefinition getTableTaxCategories() {
-        return new TableDefinition(s,
+        return new TableDefinition(sessionDB,
                 "taxcategories",
                 new String[]{"ID", "NAME"},
                 new String[]{"ID", AppLocal.getIntString("label.name")},
@@ -2491,7 +2522,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final TableDefinition getTableLocations() {
-        return new TableDefinition(s,
+        return new TableDefinition(sessionDB,
                 "locations",
                 new String[]{"ID", "NAME", "ADDRESS"},
                 new String[]{"ID", AppLocal.getIntString("label.locationname"),
@@ -2540,7 +2571,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public final UomInfo getUomInfoById(String id) throws BasicException {
-        return (UomInfo) new PreparedSentence(s,
+        return (UomInfo) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "id, name "
                 + "FROM uom "
@@ -2549,7 +2580,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public final TableDefinition getTableUom() {
-        return new TableDefinition(s,
+        return new TableDefinition(sessionDB,
                 "uom",
                 new String[]{"id", "name"},
                 new String[]{"id",
@@ -2563,11 +2594,11 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public final SentenceList<UomInfo> getUomList() {
-        return new StaticSentence(s, "SELECT ID, NAME  FROM uom ORDER BY NAME", null, UomInfo.getSerializerRead());
+        return new StaticSentence(sessionDB, "SELECT ID, NAME  FROM uom ORDER BY NAME", null, UomInfo.getSerializerRead());
     }
 
     public final SentenceList<VoucherInfo> getVoucherList() {
-        return new StaticSentence(s,
+        return new StaticSentence(sessionDB,
                 "SELECT "
                 + "vouchers.ID,vouchers.VOUCHER_NUMBER,vouchers.CUSTOMER, "
                 + "customers.NAME,AMOUNT, STATUS "
@@ -2579,7 +2610,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public final SentenceExec getVoucherNonActive() {
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "UPDATE vouchers SET STATUS = 'D' "
                 + "WHERE VOUCHER_NUMBER = ?",
                 SerializerWriteString.INSTANCE);
@@ -2587,7 +2618,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
 
     public final SentenceExec resetPickupId() {
 
-        return new PreparedSentence(s,
+        return new PreparedSentence(sessionDB,
                 "UPDATE pickup_number SET ID=1 ",
                 SerializerWriteString.INSTANCE);
 
@@ -2600,7 +2631,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @throws BasicException
      */
     public SupplierInfoExt loadSupplierExt(String id) throws BasicException {
-        return (SupplierInfoExt) new PreparedSentence(s,
+        return (SupplierInfoExt) new PreparedSentence(sessionDB,
                 "SELECT "
                 + "ID, "
                 + "SEARCHKEY, "
@@ -2674,10 +2705,10 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getCustomerInsert() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                int i = new PreparedSentence(s,
+                int i = new PreparedSentence(sessionDB,
                         "INSERT INTO customers ("
                         + "ID, "
                         + "SEARCHKEY, "
@@ -2730,11 +2761,11 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      * @return
      */
     public final SentenceExec getCustomerUpdate() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                
-                int i = new PreparedSentence(s,
+
+                int i = new PreparedSentence(sessionDB,
                         "UPDATE customers SET "
                         + "ID = ?, "
                         + "SEARCHKEY = ?, "
@@ -2779,10 +2810,10 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     public final SentenceExec getCustomerDelete() {
-        return new SentenceExecTransaction(s) {
+        return new SentenceExecTransaction(sessionDB) {
             @Override
             public int execInTransaction(Object[] params) throws BasicException {
-                return new PreparedSentence(s,
+                return new PreparedSentence(sessionDB,
                         "DELETE FROM customers WHERE ID = ?",
                         new SerializerWriteBasicExt(customersRow.getDatas(),
                                 new int[]{0}
