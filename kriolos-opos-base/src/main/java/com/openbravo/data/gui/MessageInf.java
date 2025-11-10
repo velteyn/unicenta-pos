@@ -246,6 +246,8 @@ public class MessageInf {
         sb.append(m_sAvoiding);
         if(m_eCause instanceof Throwable throwable){
             sb.append(throwable.getLocalizedMessage());
+        }else if (m_eCause instanceof String){
+            sb.append(m_eCause.toString());
         }   
         return sb.toString();
     }
