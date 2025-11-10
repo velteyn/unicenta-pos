@@ -72,13 +72,17 @@ public class CatalogController {
         
         List<CategoryInfo> list = new ArrayList<>();
         try {
-            list = dlLogicSales.getRootCategories();
+            list = filterCategories(dlLogicSales.getRootCategories());
         }
         catch (BasicException ex) {
             Exceptions.printStackTrace(ex);
         }
         
         return list;
+    }
+    
+    private List<CategoryInfo> filterCategories(List<CategoryInfo> list){
+        return list.parallelStream().filter((category) -> category.getCatalogEnabled()).toList();
     }
 
     List<ProductInfoExt> getProductConstant() {
@@ -96,7 +100,7 @@ public class CatalogController {
        
        List<CategoryInfo> list = new ArrayList<>();
         try {
-            list = dlLogicSales.getSubcategories(categoryId);
+            list = filterCategories(dlLogicSales.getSubcategories(categoryId));
         }
         catch (BasicException ex) {
             Exceptions.printStackTrace(ex);
