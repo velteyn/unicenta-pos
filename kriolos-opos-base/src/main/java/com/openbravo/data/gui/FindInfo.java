@@ -25,10 +25,10 @@ import java.util.regex.*;
  *
  * @author JG uniCenta
  */
-public class FindInfo implements Finder {
+public class FindInfo<T> implements Finder<T> {
     
     /**
-     *
+     * MATCH TYPE
      */
     public static final int MATCH_STARTFIELD = 0;
     public static final int MATCH_WHOLEFIELD = 1;
@@ -38,12 +38,12 @@ public class FindInfo implements Finder {
     private String m_sTextCompare;
     private Pattern m_TextPattern;
     
-    private String m_sText; // Texto a buscar
-    private int m_iField;   // Campo de busqueda
-    private int m_iMatch;   // Tipo de busqueda
-    private boolean m_bMatchCase; // Mayusculas / Minusculas
+    private String searchText; // Search Text/Keyword
+    private int searchField;   // Search Field
+    private int searchMatchType;   // MATCH TYPE
+    private boolean searchIsCaseSensivite; // lowercase / uppercase
     
-    private Vectorer m_vec;
+    private Vectorer vectorerData;
     
     /** Creates a new instance of FindInfo
      * @param vec
@@ -52,20 +52,20 @@ public class FindInfo implements Finder {
      * @param iMatch
      * @param bMatchCase */
     public FindInfo(Vectorer vec, String sText, int iField, boolean bMatchCase, int iMatch) {
-        m_vec = vec;
-        m_sText = sText;
-        m_iField = iField;
-        m_bMatchCase = bMatchCase;
-        m_iMatch = iMatch;
+        vectorerData = vec;
+        searchText = sText;
+        searchField = iField;
+        searchIsCaseSensivite = bMatchCase;
+        searchMatchType = iMatch;
         
         if (iMatch == MATCH_REGEXP) {          
-            m_TextPattern = m_bMatchCase 
-                ? Pattern.compile(m_sText) 
-                : Pattern.compile(m_sText, Pattern.CASE_INSENSITIVE);
+            m_TextPattern = searchIsCaseSensivite 
+                ? Pattern.compile(searchText) 
+                : Pattern.compile(searchText, Pattern.CASE_INSENSITIVE);
         } else {
-            m_sTextCompare = m_bMatchCase
-                ? m_sText
-                : m_sText.toUpperCase();
+            m_sTextCompare = searchIsCaseSensivite
+                ? searchText
+                : searchText.toUpperCase();
         }
     }
     
@@ -80,7 +80,7 @@ public class FindInfo implements Finder {
      * @return
      */
     public Vectorer getVectorer() {
-        return m_vec;
+        return vectorerData;
     }
 
     /**
@@ -88,7 +88,7 @@ public class FindInfo implements Finder {
      * @return
      */
     public String getText() {
-        return m_sText;
+        return searchText;
     }
 
     /**
@@ -96,7 +96,7 @@ public class FindInfo implements Finder {
      * @return
      */
     public int getField() {
-        return m_iField;
+        return searchField;
     }
 
     /**
@@ -104,7 +104,7 @@ public class FindInfo implements Finder {
      * @return
      */
     public boolean isMatchCase() {
-        return m_bMatchCase;
+        return searchIsCaseSensivite;
     }
 
     /**
@@ -112,7 +112,7 @@ public class FindInfo implements Finder {
      * @return
      */
     public int getMatch() {
-        return m_iMatch;
+        return searchMatchType;
     }
    
     /**
@@ -121,15 +121,16 @@ public class FindInfo implements Finder {
      * @return
      * @throws BasicException
      */
-    public boolean match(Object obj) throws BasicException {
+    @Override
+    public boolean match(T obj) throws BasicException {
         
-        String[] v = m_vec.getValues(obj);
+        String[] v = vectorerData.getValues(obj);
         
-        String sField = m_bMatchCase
-            ? v[m_iField]
-            : v[m_iField].toUpperCase();
+        String sField = searchIsCaseSensivite
+            ? v[searchField]
+            : v[searchField].toUpperCase();
         
-        switch (m_iMatch) {
+        switch (searchMatchType) {
         case MATCH_STARTFIELD:
             return sField.startsWith(m_sTextCompare);
         case MATCH_WHOLEFIELD:
