@@ -82,7 +82,7 @@ public class CatalogController {
     }
     
     private List<CategoryInfo> filterCategories(List<CategoryInfo> list){
-        return list.parallelStream().filter((category) -> category.getCatalogEnabled()).toList();
+        return list.parallelStream().filter((category) -> (category.getCatalogEnabled() != null && category.getCatalogEnabled())).toList();
     }
 
     List<ProductInfoExt> getProductConstant() {
