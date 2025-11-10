@@ -26,6 +26,7 @@ import java.util.logging.Logger;
 import java.sql.SQLException;
 import com.openbravo.pos.forms.AppConfig;
 import com.openbravo.pos.forms.AppLocal;
+import com.openbravo.pos.ticket.TicketInfo;
 import com.openbravo.pos.util.AltEncrypter;
 import javax.swing.JOptionPane;
 
@@ -38,8 +39,6 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
     private static final Logger LOGGER = Logger.getLogger(JPanelTicketSetup.class.getName());
     private static final long serialVersionUID = 1L;
     private final DirtyManager dirty = new DirtyManager();
-    private String receipt = "1";
-    private Integer x = 0;
     private String receiptSize;
     private String pickupSize;
     private AppConfig config;
@@ -117,15 +116,10 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
     }
 
     private void receiptPrefixExample() {
-        receipt = "";
-        x = 1;
-        while (x < (Integer) jReceiptSize.getValue()) {
-            receipt += "0";
-            x++;
-        }
-
-        receipt += "1";
-        jTicketExample.setText(jTextReceiptPrefix.getText() + receipt);
+        int ticketId = 123;
+        int leadZero = (Integer) jReceiptSize.getValue();
+        String receipt = TicketInfo.formatDocumentNumber(jTextReceiptPrefix.getText(), ticketId, null, leadZero);
+        jTicketExample.setText(receipt);
     }
 
     /*
@@ -154,7 +148,7 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
 
         dirty.setDirty(false);
     }
-
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -232,7 +226,6 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
             }
         });
 
-        m_jReceiptPrintOff.setBackground(new java.awt.Color(255, 255, 255));
         m_jReceiptPrintOff.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         m_jReceiptPrintOff.setText(bundle.getString("label.receiptprint")); // NOI18N
         m_jReceiptPrintOff.setPreferredSize(new java.awt.Dimension(180, 30));
@@ -245,7 +238,8 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
         jbtnReset.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         jbtnReset.setIcon(new javax.swing.ImageIcon(getClass().getResource("/com/openbravo/images/reload.png"))); // NOI18N
         jbtnReset.setText(AppLocal.getIntString("label.resetpickup")); // NOI18N
-        jbtnReset.setMaximumSize(new java.awt.Dimension(70, 33));
+        jbtnReset.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        jbtnReset.setMaximumSize(new java.awt.Dimension(100, 45));
         jbtnReset.setMinimumSize(new java.awt.Dimension(70, 33));
         jbtnReset.setPreferredSize(new java.awt.Dimension(100, 45));
         jbtnReset.addActionListener(new java.awt.event.ActionListener() {
@@ -272,14 +266,14 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addComponent(jTextReceiptPrefix, javax.swing.GroupLayout.DEFAULT_SIZE, 133, Short.MAX_VALUE)
                             .addComponent(jReceiptSize, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
+                        .addGap(17, 17, 17))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jPickupSize, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGap(6, 6, 6)))
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jbtnReset, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jTicketExample, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(247, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jbtnReset, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jTicketExample, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(136, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -294,19 +288,22 @@ public class JPanelTicketSetup extends javax.swing.JPanel implements PanelConfig
                     .addComponent(jTextReceiptPrefix, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jTicketExample, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jPickupSize, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jbtnReset, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jbtnReset, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGap(2, 2, 2))
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jPickupSize, javax.swing.GroupLayout.PREFERRED_SIZE, 32, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18)
                 .addComponent(m_jReceiptPrintOff, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(316, Short.MAX_VALUE))
+                .addContainerGap(302, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
     private void jTextReceiptPrefixKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jTextReceiptPrefixKeyReleased
 
-        jTicketExample.setText(jTextReceiptPrefix.getText() + receipt);
+        receiptPrefixExample();
     }//GEN-LAST:event_jTextReceiptPrefixKeyReleased
 
     private void jReceiptSizeStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_jReceiptSizeStateChanged
