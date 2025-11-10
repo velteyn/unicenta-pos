@@ -62,20 +62,24 @@ public class JColorPicker extends JButton {
     public void setColor(Color color){
         Color oldcolor = this.color;
         this.color = color;
-        this.setBackground(this.color);
+        this.setBackground(color);
         this.setText(getHexColor());
         
         firePropertyChange("color", oldcolor, this.color);
     }
     
     public void setColor(String hexColorString ){
-        Color newcolor = Color.decode(hexColorString );
-        this.setColor(newcolor);
+        if(hexColorString != null && !hexColorString.isBlank()){
+            Color newcolor = Color.decode(hexColorString );
+            this.setColor(newcolor);
+        }else {
+            this.reset();
+        }
     }
     
     public void reset(){
         this.color = null;
-        this.setBackground(this.color);
+        this.setBackground(null);
         this.setText(null);
     }
     
