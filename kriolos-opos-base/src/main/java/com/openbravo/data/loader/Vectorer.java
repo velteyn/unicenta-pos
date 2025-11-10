@@ -20,9 +20,10 @@ import com.openbravo.basic.BasicException;
 /**
  *
  * @author JG uniCenta
+ * @param <T>
  */
-public interface Vectorer {
+public interface Vectorer<T> {
 
     public String[] getHeaders() throws BasicException;
-    public String[] getValues(Object obj) throws BasicException;
+    public String[] getValues(T obj) throws BasicException;
 }

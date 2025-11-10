@@ -21,8 +21,9 @@ import com.openbravo.basic.BasicException;
 /**
  *
  * @author JG uniCenta
+ * @param <T>
  */
 @FunctionalInterface
-public interface Finder {
-    public boolean match(Object obj) throws BasicException;
+public interface Finder<T> {
+    public boolean match(T obj) throws BasicException;
 }
