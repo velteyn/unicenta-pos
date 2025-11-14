@@ -13,11 +13,11 @@
 //
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package com.openbravo.pos.sales;
 
 import com.openbravo.format.Formats;
 import com.openbravo.pos.forms.AppView;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Date;
@@ -43,32 +43,50 @@ public class KitchenDisplay {
     }
 
     /**
-     *
-     * @param ID
+     * Inset data into KITCHENDISPLAY 
+     * This data will be use by Kitchen Display System (KDS)
+     * 
+     * @param id
      * @param table
      * @param pickupID
      * @param product
      * @param multiply
      * @param attributes
      */
-    public void addRecord(String ID, String table, String pickupID, String product, String multiply, String attributes) {
+    public void addRecord(String id, String table, String pickupID, String product, String multiply, String attributes) {
         Date date = new Date();
+        String SQL = "INSERT INTO KITCHENDISPLAY (ID, ORDERTIME, PLACE, PICKUPID, PRODUCT, MULTIPLY, ATTRIBUTES) VALUES (?, ?, ?, ?, ?, ?, ?) ";
 
         try {
-            String SQL = "INSERT INTO KITCHENDISPLAY (ID, ORDERTIME, PLACE, PICKUPID, PRODUCT, MULTIPLY, ATTRIBUTES) VALUES (?, ?, ?, ?, ?, ?, ?) ";
-            PreparedStatement pstmt = m_App.getSession().getConnection().prepareStatement(SQL);
-            pstmt.setString(1, ID);
-            pstmt.setString(2, Formats.HOURMIN.formatValue(date));
-            pstmt.setString(3, table);
-            pstmt.setString(4, pickupID);
-            pstmt.setString(5, product);
-            pstmt.setString(6, multiply);
-            pstmt.setString(7, attributes);
-            pstmt.executeUpdate();
-            m_App.getSession().getConnection().commit();
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "", e);
+            Connection conDB = m_App.getSession().getConnection();
+
+            try (PreparedStatement pstmt = conDB.prepareStatement(SQL)) {
+                //Diable auto-commit because manual end the end
+                pstmt.getConnection().setAutoCommit(false);
+                pstmt.setString(1, id);
+                pstmt.setString(2, Formats.HOURMIN.formatValue(date));
+                pstmt.setString(3, table);
+                pstmt.setString(4, pickupID);
+                pstmt.setString(5, product);
+                pstmt.setString(6, multiply);
+                pstmt.setString(7, attributes);
+                pstmt.executeUpdate();
+                pstmt.getConnection().commit();
+            }
+            catch (SQLException ex) {
+                try {
+                    conDB.rollback();
+                }
+                catch (SQLException exRoolB) {
+                    LOGGER.log(Level.WARNING, "Exception roolback KDS  with ID: " + id, exRoolB);
+                }
+                LOGGER.log(Level.SEVERE, "Exception insert data into KDS table with ID: " + id, ex);
+            }
         }
+        catch (SQLException ex) {
+             LOGGER.log(Level.SEVERE, "Exception get DB Connection, to Insert into  KDS table with ID: " + id, ex);
+        }
+
     }
 
 }

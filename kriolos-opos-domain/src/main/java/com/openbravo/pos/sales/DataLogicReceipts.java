@@ -31,14 +31,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -48,7 +47,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
 
     private final static System.Logger LOGGER = System.getLogger(DataLogicReceipts.class.getName());
 
-    private Session s;
+    private Session sessionDB;
 
     /**
      * Creates a new instance of DataLogicReceipts
@@ -62,7 +61,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
      */
     @Override
     public void init(Session s) {
-        this.s = s;
+        this.sessionDB = s;
     }
 
     /**
@@ -76,7 +75,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
 
         try {
             if (id != null) {
-                Object[] record = (Object[]) new StaticSentence(s,
+                Object[] record = (Object[]) new StaticSentence(sessionDB,
                         "SELECT CONTENT FROM sharedtickets WHERE ID = ?",
                         SerializerWriteString.INSTANCE,
                         new SerializerReadBasic(new Datas[]{Datas.SERIALIZABLE})).find(id);
@@ -87,7 +86,8 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
             } else {
                 LOGGER.log(System.Logger.Level.ERROR, "Fail getSharedTicket id is null");
             }
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception getSharedTicket: " + id, ex);
             throw new BasicException("Exception getSharedTicket id: " + id, ex);
         }
@@ -107,7 +107,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
         List<SharedTicketInfo> list = new ArrayList<>();
         String SQL = "SELECT ID, NAME, APPUSER, LOCKED, PICKUPID, CONTENT FROM sharedtickets ORDER BY ID";
 
-        try (Statement pstmt = s.getConnection().createStatement(); ResultSet rs = pstmt.executeQuery(SQL)) {
+        try (Statement pstmt = sessionDB.getConnection().createStatement(); ResultSet rs = pstmt.executeQuery(SQL)) {
             while (rs.next()) {
                 SharedTicketInfo sTicketInfo = new SharedTicketInfo();
 
@@ -124,7 +124,8 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
 
                 list.add(sTicketInfo);
             }
-        } catch (SQLException | IOException | ClassNotFoundException ex) {
+        }
+        catch (SQLException | IOException | ClassNotFoundException ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception getSharedTicketList ", ex);
             throw new BasicException("Exception getSharedTicketList", ex);
         }
@@ -137,7 +138,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
 
         List<SharedTicketInfo> list = new ArrayList<>();
 
-        try (PreparedStatement pstmt = s.getConnection().prepareStatement(sql)) {
+        try (PreparedStatement pstmt = sessionDB.getConnection().prepareStatement(sql)) {
             pstmt.setString(1, appuser);
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -156,12 +157,14 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
 
                     list.add(sTicketInfo);
                 }
-            } catch (IOException | ClassNotFoundException ex) {
+            }
+            catch (IOException | ClassNotFoundException ex) {
                 LOGGER.log(System.Logger.Level.ERROR, "Exception get SharedTicket for user: " + appuser, ex);
                 throw new BasicException("Exception get SharedTicket for user: " + appuser, ex);
             }
 
-        } catch (SQLException ex) {
+        }
+        catch (SQLException ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception get SharedTicket for user: " + appuser, ex);
             throw new BasicException("Exception get SharedTicket for user: " + appuser, ex);
         }
@@ -172,7 +175,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
         String sql = "SELECT ID, NAME, APPUSER, LOCKED, PICKUPID, CONTENT FROM sharedtickets WHERE ID =? LIMIT 1";
 
         SharedTicketInfo sTicketInfo;
-        try (PreparedStatement pstmt = s.getConnection().prepareStatement(sql)) {
+        try (PreparedStatement pstmt = sessionDB.getConnection().prepareStatement(sql)) {
             pstmt.setString(1, sharedId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -190,12 +193,14 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
                 TicketInfo tInfo = (TicketInfo) bis.readObject();
                 sTicketInfo.setTicketInfo(tInfo);
 
-            } catch (IOException | ClassNotFoundException ex) {
+            }
+            catch (IOException | ClassNotFoundException ex) {
                 LOGGER.log(System.Logger.Level.ERROR, "Exception get SharedTicket id: " + sharedId, ex);
                 throw new BasicException("Exception get SharedTicket for user: " + sharedId, ex);
             }
 
-        } catch (SQLException ex) {
+        }
+        catch (SQLException ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception get SharedTicket id: " + sharedId, ex);
             throw new BasicException("Exception get SharedTicket id: " + sharedId, ex);
         }
@@ -205,30 +210,47 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
     public final void insertSharedTicket(final String id, final TicketInfo ticket, int pickupid) throws BasicException {
         int rowsAffected;
         String SQL = "INSERT INTO sharedtickets (ID, NAME, CONTENT, APPUSER, PICKUPID) VALUES (?, ?, ?, ?, ?) ";
+        try {
+            Connection conDB = sessionDB.getConnection();
+            try (PreparedStatement pstmt = conDB.prepareStatement(SQL)) {
+                pstmt.getConnection().setAutoCommit(false);
 
-        try (PreparedStatement pstmt = s.getConnection().prepareStatement(SQL)) {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ObjectOutputStream bos = new ObjectOutputStream(baos);
+                bos.writeObject(ticket);
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream bos = new ObjectOutputStream(baos);
-            bos.writeObject(ticket);
+                byte[] saves = baos.toByteArray();
+                ByteArrayInputStream bais = new ByteArrayInputStream(saves);
 
-            byte[] saves = baos.toByteArray();
-            ByteArrayInputStream bais = new ByteArrayInputStream(saves);
+                pstmt.setString(1, id);
+                pstmt.setString(2, ticket.getName());
+                pstmt.setBinaryStream(3, bais);
+                pstmt.setString(4, ticket.getUser().getId());
+                pstmt.setInt(5, pickupid);
+                rowsAffected = pstmt.executeUpdate();
 
-            pstmt.setString(1, id);
-            pstmt.setString(2, ticket.getName());
-            pstmt.setBinaryStream(3, bais);
-            pstmt.setString(4, ticket.getUser().getId());
-            pstmt.setInt(5, pickupid);
-            rowsAffected = pstmt.executeUpdate();
+                pstmt.getConnection().commit();
 
-            pstmt.getConnection().commit();
+                LOGGER.log(System.Logger.Level.DEBUG, "Insert SharedTicket id: " + id + ", affected row: " + rowsAffected);
 
-            LOGGER.log(System.Logger.Level.DEBUG, "Insert SharedTicket id: " + id + ", affected row: " + rowsAffected);
+            }
+            catch (SQLException | IOException ex) {
 
-        } catch (SQLException | IOException ex) {
-            LOGGER.log(System.Logger.Level.ERROR, "Exception Insert SharedTicket id: " + id, ex);
-            throw new BasicException("Exception Insert SharedTicket id: " + id, ex);
+                try {
+                    if (conDB != null) {
+                        conDB.rollback();
+                    }
+                }
+                catch (SQLException exRoolB) {
+                    LOGGER.log(System.Logger.Level.ERROR, "Exception roolback SharedTicket id: " + id, exRoolB);
+                }
+
+                LOGGER.log(System.Logger.Level.ERROR, "Exception Insert SharedTicket id: " + id, ex);
+                throw new BasicException("Exception Insert SharedTicket id: " + id, ex);
+            }
+        }
+        catch (SQLException ex) {
+            LOGGER.log(System.Logger.Level.ERROR, "Exception get DB Connection. Insert into  SharedTicket table with ID: " + id, ex);
         }
     }
 
@@ -242,7 +264,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
     public final void updateSharedTicket(final String id, final TicketInfo ticket, int pickupid) throws BasicException {
 
         String SQL = "UPDATE sharedtickets SET NAME = ?, CONTENT = ?, APPUSER = ?, PICKUPID = ? WHERE ID = ?";
-        try (PreparedStatement pstmt = s.getConnection().prepareStatement(SQL)) {
+        try (PreparedStatement pstmt = sessionDB.getConnection().prepareStatement(SQL)) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream bos = new ObjectOutputStream(baos);
             bos.writeObject(ticket);
@@ -256,7 +278,8 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
             pstmt.setInt(4, pickupid);
             pstmt.setString(5, id);
             pstmt.executeUpdate();
-        } catch (SQLException | IOException ex) {
+        }
+        catch (SQLException | IOException ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception UPDATE SharedTicket id: " + id, ex);
             throw new BasicException("Exception UPDATE SharedTicket id: " + id, ex);
         }
@@ -289,12 +312,13 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
                 Datas.STRING,
                 Datas.STRING
             };
-            new PreparedSentence(s,
+            new PreparedSentence(sessionDB,
                     "UPDATE sharedtickets SET "
                     + "LOCKED = ? "
                     + "WHERE ID = ?",
                     new SerializerWriteBasicExt(datas, new int[]{1, 0})).exec(values);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception lockSharedTicket id: " + id, ex);
             throw new BasicException("Exception lockSharedTicket id: " + id, ex);
         }
@@ -319,12 +343,13 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
                 Datas.STRING,
                 Datas.STRING
             };
-            new PreparedSentence(s,
+            new PreparedSentence(sessionDB,
                     "UPDATE sharedtickets SET "
                     + "LOCKED = ? "
                     + "WHERE ID = ?",
                     new SerializerWriteBasicExt(datas, new int[]{1, 0})).exec(values);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception unlockSharedTicket id: " + id, ex);
             throw new BasicException("Exception unlockSharedTicket id: " + id, ex);
         }
@@ -350,10 +375,11 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
     public final void deleteSharedTicket(final String id) throws BasicException {
 
         try {
-            new StaticSentence(s,
+            new StaticSentence(sessionDB,
                     "DELETE FROM sharedtickets WHERE ID = ?",
                     SerializerWriteString.INSTANCE).exec(id);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             LOGGER.log(System.Logger.Level.ERROR, "Exception Delete SharedTicket id: " + id, ex);
             throw new BasicException("Exception Delete SharedTicket id: " + id, ex);
         }
@@ -363,7 +389,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
         Integer pickupId = 0;
 
         SharedTicketInfo sht = getSharedTicketInfo(sharedTicketId);
-        if(sht != null) {
+        if (sht != null) {
             pickupId = sht.getPickupId();
         }
 
@@ -374,7 +400,7 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
         String userId = null;
 
         SharedTicketInfo sht = getSharedTicketInfo(sharedTicketId);
-        if(sht != null) {
+        if (sht != null) {
             userId = sht.getUserName();
         }
 
@@ -385,10 +411,10 @@ public class DataLogicReceipts extends BeanFactoryDataSingle {
         String state = null;
 
         SharedTicketInfo sht = getSharedTicketInfo(sharedTicketId);
-        if(sht != null) {
+        if (sht != null) {
             state = sht.getStatus();
         }
-        
+
         return state;
     }
 }
