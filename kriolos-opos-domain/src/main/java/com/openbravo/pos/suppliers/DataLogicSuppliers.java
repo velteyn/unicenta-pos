@@ -25,12 +25,15 @@ import com.openbravo.format.Formats;
 import com.openbravo.pos.forms.AppLocal;
 import com.openbravo.pos.forms.BeanFactoryDataSingle;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author JG uniCenta
  */
 public class DataLogicSuppliers extends BeanFactoryDataSingle {
-    
+
+    private static final Logger LOGGER = Logger.getLogger(DataLogicSuppliers.class.getName());    
     /**
      * Main Method for supplier object
      */
@@ -127,7 +130,7 @@ public class DataLogicSuppliers extends BeanFactoryDataSingle {
      *
      * @return supplier data
      */
-        public SentenceList<SupplierInfo> getSupplierList() {
+    public SentenceList<SupplierInfo> getSupplierList() {
         return new StaticSentence(s
             , new QBFBuilder("SELECT "
                     + "ID, SEARCHKEY, TAXID, NAME, "
@@ -152,6 +155,17 @@ public class DataLogicSuppliers extends BeanFactoryDataSingle {
             s1.setEmail(dr.getString(7));
             return s1;
         });
+    }
+    
+    public List<SupplierInfo> getSupplierListAll() {
+    
+        List<SupplierInfo> list = null;
+        try {
+            list = this.getSupplierList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get SupplierInfo list", ex);
+        }
+        return list;
     }
         
     /**
