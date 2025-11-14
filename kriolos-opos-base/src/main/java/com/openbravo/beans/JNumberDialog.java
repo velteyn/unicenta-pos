@@ -65,9 +65,10 @@ public abstract class JNumberDialog<T extends Number> extends javax.swing.JDialo
         m_jnumber.setMinimumSize(new java.awt.Dimension(100, 20));
         m_jnumber.setPreferredSize(new java.awt.Dimension(132, 20));
         m_jnumber.reset();
+        m_jKeys.setEnabled(true);
+        m_jnumber.addEditorKeys(m_jKeys); //Must be call before call #.active()
         m_jnumber.activate();
         m_jnumber.setVisible(false);
-        m_jnumber.addEditorKeys(m_jKeys);
         
         jInputPanel.removeAll();
         jInputPanel.add(m_jnumber, java.awt.BorderLayout.PAGE_START);
