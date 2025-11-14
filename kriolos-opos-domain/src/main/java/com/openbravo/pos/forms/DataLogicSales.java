@@ -51,6 +51,7 @@ import com.openbravo.pos.suppliers.SupplierInfo;
 import com.openbravo.pos.suppliers.SupplierInfoExt;
 import com.openbravo.pos.ticket.ProductInfoExtA;
 import com.openbravo.pos.voucher.VoucherInfo;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Date;
@@ -1125,7 +1126,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     /**
-     *
+     * @deprecated  since Nov/2025
      * @return
      */
     public final SentenceList<TaxInfo> getTaxList() {
@@ -1152,9 +1153,21 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                         dr.getBoolean(7),
                         dr.getInt(8)));
     }
+    
+    
+    public final List<TaxInfo> getTaxListAll() {
+        List<TaxInfo> list = null;
+        try {
+            list = this.getTaxList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get Tax list", ex);
+        }
+        return list;
+    }
 
     /**
-     * @deprecated @return
+     * @deprecated since Nov/2025
+     * @return
      */
     public final SentenceList<CategoryInfo> getCategoriesList() {
         return new StaticSentence(sessionDB,
@@ -1293,12 +1306,13 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     @SuppressWarnings("unchecked")
     public final List<CustomerTransaction> getCustomersTransactionList(String cId) throws BasicException {
 
+        //TODO: TICKETLINE MUST STORE: _tax_value, _line_amount(Qty x price) _line_total (Price x Qty x Tax), line_prod_name
         return new PreparedSentence<>(sessionDB,
                 "SELECT tickets.TICKETID, "
                 + "products.NAME AS PNAME, "
                 + "SUM(ticketlines.UNITS) AS UNITS, "
                 + "SUM(ticketlines.UNITS * ticketlines.PRICE) AS AMOUNT, "
-                + "SUM(ticketlines.UNITS * ticketlines.PRICE * (1.0 + taxes.RATE)) AS TOTAL, "
+                + "SUM(ticketlines.UNITS * ticketlines.PRICE * (1.0 + taxes.RATE)) AS TOTAL, " //TODO: CALCULATION MUST NOT BE DONE ON DB (Use Java BigDecimal)
                 + "receipts.DATENEW, "
                 + "customers.ID AS CID "
                 + "FROM ((((ticketlines ticketlines "
@@ -1316,7 +1330,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
     }
 
     /**
-     *
+     * @deprecated Since Nov/2025
      * @return
      */
     public final SentenceList<TaxCategoryInfo> getTaxCategoriesList() {
@@ -1329,9 +1343,23 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 null,
                 (DataRead dr) -> new TaxCategoryInfo(dr.getString(1), dr.getString(2)));
     }
+    
+    /**
+     * 
+     * @return 
+     */
+    public final List<TaxCategoryInfo> getTaxCategoriesListAll() {
+        List<TaxCategoryInfo> list = null;
+        try {
+            list = this.getTaxCategoriesList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get TaxCategoryInfo list", ex);
+        }
+        return list;
+    }
 
     /**
-     *
+     * @deprecated Since Nov/2025
      * @return
      */
     public final SentenceList<AttributeSetInfo> getAttributeSetList() {
@@ -1344,9 +1372,19 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 null,
                 (DataRead dr) -> new AttributeSetInfo(dr.getString(1), dr.getString(2)));
     }
+    
+    public final List<AttributeSetInfo> getAttributeSetListAll() {
+        List<AttributeSetInfo> list = null;
+        try {
+            list = this.getAttributeSetList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get AttributeSetInfo list", ex);
+        }
+        return list;
+    }
 
     /**
-     *
+     * @deprecated Since Nov/2025
      * @return
      */
     public final SentenceList<LocationInfo> getLocationsList() {
@@ -1358,6 +1396,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 + "ORDER BY NAME",
                 null,
                 new SerializerReadClass(LocationInfo.class));
+    }
+    
+    public final List<LocationInfo> getLocationsListAll() {
+        List<LocationInfo> list = null;
+        try {
+            list = this.getLocationsList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get AttributeSetInfo list", ex);
+        }
+        return list;
     }
 
     /**
@@ -1958,6 +2006,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 SerializerWriteString.INSTANCE,
                 (DataRead dr) -> ImageUtils.readImage(dr.getBytes(1)));
     }
+    
+    public final BufferedImage getProductImage(String imageId) {
+        
+        try {
+            return (BufferedImage) getProductImage().find(imageId);
+        }
+        catch (BasicException e) {
+            return null;
+        }
+    }
 
     /**
      * Loads on ProductsEditor
@@ -2296,6 +2354,23 @@ public class DataLogicSales extends BeanFactoryDataSingle {
             }
         };
     }
+    
+    public final void saveStockDiary(ProductStockTransaction prodStock)  throws BasicException{
+    
+        getStockDiaryInsert1().exec(new Object[]{
+                prodStock.getId(),
+                prodStock.getTransactionDate(),
+                prodStock.getReasonId(),
+                prodStock.getLocationId(),
+                prodStock.getProductId(),
+                prodStock.getProductAttribSetId(),
+                prodStock.getReasonId(),
+                prodStock.getPrice(),
+                prodStock.getUserId(),
+                prodStock.getSupplierId(),
+                prodStock.getSupplierDoc()
+            });
+    }
 
     /**
      *
@@ -2595,6 +2670,16 @@ public class DataLogicSales extends BeanFactoryDataSingle {
 
     public final SentenceList<UomInfo> getUomList() {
         return new StaticSentence(sessionDB, "SELECT ID, NAME  FROM uom ORDER BY NAME", null, UomInfo.getSerializerRead());
+    }
+    
+    public final List<UomInfo> getUomListAll() {
+        List<UomInfo> list = null;
+        try {
+            list = this.getUomList().list();
+        } catch (BasicException ex) {
+            LOGGER.log(Level.WARNING, "Cannot get UomInfo list", ex);
+        }
+        return list;
     }
 
     public final SentenceList<VoucherInfo> getVoucherList() {
