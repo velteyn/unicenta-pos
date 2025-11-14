@@ -24,6 +24,7 @@ import com.openbravo.data.loader.DataWrite;
 import com.openbravo.data.loader.SerializableRead;
 import com.openbravo.data.loader.SerializableWrite;
 import com.openbravo.format.Formats;
+import com.openbravo.pos.domain.utils.AmountCalculatorUtil;
 import com.openbravo.pos.forms.AppLocal;
 import com.openbravo.pos.util.StringUtils;
 import java.io.*;
@@ -358,18 +359,18 @@ public class TicketLineInfo implements SerializableWrite, SerializableRead, Seri
     }
 
     public double getNewPrice() {
-        newprice = price * (1.0 + getTaxRate());
-        return price;
+        newprice = AmountCalculatorUtil.calcPriceWithTaxInclusive(price, tax);
+        return newprice;
     }
 
 // These are the Summaries  
     /**
-     * Get Line Unit Amount (Tax Include) Total of (Price x (1.0 + TaxRate))
+     * Get Line Unit Amount (Tax Include) Total of (Price x Tax))
      *
      * @return
      */
     public double getPriceTax() {
-        return price * (1.0 + getTaxRate());
+        return AmountCalculatorUtil.calcPriceWithTaxInclusive(price, tax);
     }
 
     /**
@@ -408,22 +409,26 @@ public class TicketLineInfo implements SerializableWrite, SerializableRead, Seri
     }
 
 // These are Ticket Totals    
+    private double getSubTotalWihoutTax(){
+        return AmountCalculatorUtil.calcSubTotalAmount(price, multiply);
+    }
     /**
      * Get Line Tax Total Total of (Price * Qty)
      *
      * @return
      */
     public double getTax() {
-        return price * multiply * getTaxRate();
+        double subTotalWithoutTax = getSubTotalWihoutTax();
+        return AmountCalculatorUtil.calcTaxAmount(subTotalWithoutTax, tax);
     }
 
     /**
-     * Get Line Amount (Tax Included) Total of (Price x Qty x (1.0 * TaxRate))
+     * Get Line Amount (Tax Included) Total of (Price x Qty x Tax))
      *
      * @return
      */
-    public double getValue() {
-        return price * multiply * (1.0 + getTaxRate());
+    public double getValue() { 
+        return AmountCalculatorUtil.calcPriceWithTaxInclusive(getSubTotalWihoutTax(), tax);
     }
 
     /**
@@ -432,7 +437,7 @@ public class TicketLineInfo implements SerializableWrite, SerializableRead, Seri
      * @return
      */
     public double getSubValue() {
-        return price * multiply;
+        return getSubTotalWihoutTax();
     }
 
 // SETTERS
@@ -441,7 +446,7 @@ public class TicketLineInfo implements SerializableWrite, SerializableRead, Seri
     }
 
     public void setPriceTax(double dValue) {
-        price = dValue / (1.0 + getTaxRate());
+        price = AmountCalculatorUtil.calcPriceWithoutTax(dValue, tax);
     }
 
     public void setMultiply(double dValue) {

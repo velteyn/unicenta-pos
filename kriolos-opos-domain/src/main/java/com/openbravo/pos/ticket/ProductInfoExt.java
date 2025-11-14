@@ -24,6 +24,7 @@ import com.openbravo.data.loader.ImageUtils;
 import com.openbravo.data.loader.SerializerRead;
 import java.util.Properties;
 import com.openbravo.format.Formats;
+import com.openbravo.pos.domain.utils.AmountCalculatorUtil;
 import java.awt.image.BufferedImage;
 
 /**
@@ -286,7 +287,7 @@ public class ProductInfoExt {
     }
     
     public final double getPriceSellTax(TaxInfo tax) {
-        return m_dPriceSell * (1.0 + tax.getRate());
+        return AmountCalculatorUtil.calcPriceWithTaxInclusive(m_dPriceSell, tax);
     }
     public String printPriceSellTax(TaxInfo tax) {        
         return Formats.CURRENCY.formatValue(getPriceSellTax(tax));

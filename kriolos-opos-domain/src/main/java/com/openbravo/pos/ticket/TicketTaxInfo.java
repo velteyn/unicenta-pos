@@ -20,7 +20,7 @@
 package com.openbravo.pos.ticket;
 
 import com.openbravo.format.Formats;
-import com.openbravo.pos.ticket.TaxInfo;
+import com.openbravo.pos.domain.utils.AmountCalculatorUtil;
 
 /**
  *
@@ -56,7 +56,7 @@ public class TicketTaxInfo {
      */
     public void add(double dValue) {
         subtotal += dValue;
-        taxtotal = subtotal * tax.getRate();
+        taxtotal = AmountCalculatorUtil.calcTaxAmount(subtotal, tax);
     }
     
     /**

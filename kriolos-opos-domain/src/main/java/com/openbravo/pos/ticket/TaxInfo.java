@@ -216,5 +216,5 @@ public class TaxInfo implements Serializable, IKeyed {
     @Override
     public String toString(){
         return name;
-    }
+    }  
 }
