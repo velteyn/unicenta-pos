@@ -24,8 +24,6 @@ import com.openbravo.beans.JCalendarDialog;
 import com.openbravo.data.gui.ComboBoxValModel;
 import com.openbravo.data.gui.MessageInf;
 import com.openbravo.data.loader.LocalRes;
-import com.openbravo.data.loader.SentenceExec;
-import com.openbravo.data.loader.SentenceList;
 import com.openbravo.format.Formats;
 import com.openbravo.pos.catalog.CatalogSelector;
 import com.openbravo.pos.catalog.JCatalog;
@@ -48,13 +46,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 
 /**
@@ -63,6 +62,8 @@ import javax.swing.table.TableModel;
  * @author jack gerrard
  */
 public class StockManagement extends JPanel implements JPanelView {
+
+    private final static Logger LOGGER = Logger.getLogger(ProductsEditor.class.getName());
 
     private final AppView m_App;
     private final String user;
@@ -75,11 +76,9 @@ public class StockManagement extends JPanel implements JPanelView {
     private final CatalogSelector m_cat;
     private final ComboBoxValModel m_ReasonModel;
 
-    private final SentenceList<LocationInfo> m_sentlocations;
     private ComboBoxValModel m_LocationsModel;
     private ComboBoxValModel m_LocationsModelDes;
 
-    private final SentenceList m_sentsuppliers;
     private ComboBoxValModel m_SuppliersModel;
 
     private final JInventoryLines m_invlines;
@@ -122,8 +121,11 @@ public class StockManagement extends JPanel implements JPanelView {
         m_dlSales = (DataLogicSales) m_App.getBean("com.openbravo.pos.forms.DataLogicSales");
         m_dlSuppliers = (DataLogicSuppliers) m_App.getBean("com.openbravo.pos.suppliers.DataLogicSuppliers");
         m_TTP = new TicketParser(m_App.getDeviceTicket(), m_dlSystem);
+        stockModel = new ProductStockTableModel(new ArrayList<>());
 
         initComponents();
+
+        jTableProductStock.setModel(stockModel);
 
         user = m_App.getAppUserView().getUser().getName();
 
@@ -132,7 +134,6 @@ public class StockManagement extends JPanel implements JPanelView {
         lblTotalQtyValue.setText(null);
         lbTotalValue.setText(null);
 
-        m_sentlocations = m_dlSales.getLocationsList();
         m_LocationsModel = new ComboBoxValModel();
         m_LocationsModelDes = new ComboBoxValModel();
 
@@ -153,7 +154,6 @@ public class StockManagement extends JPanel implements JPanelView {
 
         m_jreason.setModel(m_ReasonModel);
 
-        m_sentsuppliers = m_dlSuppliers.getSupplierList();
         m_SuppliersModel = new ComboBoxValModel();
 
         m_cat = new JCatalog(m_dlSales);
@@ -193,14 +193,15 @@ public class StockManagement extends JPanel implements JPanelView {
     public void activate() throws BasicException {
         m_cat.loadCatalog();
 
-        java.util.List<LocationInfo> l = m_sentlocations.list();
+        java.util.List<LocationInfo> l = m_dlSales.getLocationsListAll();
+
         m_LocationsModel = new ComboBoxValModel<LocationInfo>(l);
         m_jLocation.setModel(m_LocationsModel);
         m_LocationsModelDes = new ComboBoxValModel(l);
         m_jLocationDes.setModel(m_LocationsModelDes);
 
-        java.util.List sl = m_sentsuppliers.list();
-        m_SuppliersModel = new ComboBoxValModel(sl);
+        List<SupplierInfo> sl = m_dlSuppliers.getSupplierListAll();
+        m_SuppliersModel = new ComboBoxValModel<SupplierInfo>(sl);
         m_jSupplier.setModel(m_SuppliersModel);
 
         stateToInsert();
@@ -288,36 +289,35 @@ public class StockManagement extends JPanel implements JPanelView {
             } else {
                 incProduct(oProduct, dQuantity);
             }
-        } catch (BasicException eData) {
+        }
+        catch (BasicException eData) {
             MessageInf msg = new MessageInf(eData);
             msg.show(this);
         }
     }
 
-    private List<ProductStock> getProductOfName(String pId) {
-
-        try {
-            productStockList = m_dlSales.getProductStockList(pId);
-
-        } catch (BasicException ex) {
-            Logger.getLogger(ProductsEditor.class.getName()).log(Level.SEVERE, null, ex);
-        }
+    private List<ProductStock> getProductStockList(String pId) {
 
         List<ProductStock> productList = new ArrayList<>();
+        try {
+            productStockList = m_dlSales.getProductStockList(pId);
+            productStockList.stream().forEach((productStock) -> {
+                String productId = productStock.getProductId();
+                if (productId.equals(pId)) {
+                    productList.add(productStock);
+                }
+            });
 
-        productStockList.stream().forEach((productStock) -> {
-            String productId = productStock.getProductId();
-            if (productId.equals(pId)) {
-                productList.add(productStock);
-            }
-        });
-
-        repaint();
+        }
+        catch (BasicException ex) {
+            LOGGER.log(Level.SEVERE, "Exception get product stock moviments", ex);
+        }
 
         return productList;
     }
 
     public void resetTranxTable() {
+        ensureStockModelNotNull();
 
         jTableProductStock.getColumnModel().getColumn(0).setPreferredWidth(50);
         jTableProductStock.getColumnModel().getColumn(1).setPreferredWidth(50);
@@ -330,7 +330,7 @@ public class StockManagement extends JPanel implements JPanelView {
     }
 
     public void clearStockTable() {
-
+        ensureStockModelNotNull();
         TableModel tModel = jTableProductStock.getModel();
         if (tModel != null) {
             ProductStockTableModel model = (ProductStockTableModel) tModel;
@@ -348,7 +348,14 @@ public class StockManagement extends JPanel implements JPanelView {
         jTableProductStock.repaint();
     }
 
+    private void ensureStockModelNotNull() {
+        if (stockModel == null) {
+            stockModel = new ProductStockTableModel(new ArrayList<>());
+        }
+    }
+
     public void showStockTable() {
+        ensureStockModelNotNull();
 
         String pId = null;
         int i = m_invlines.getSelectedRow();
@@ -360,9 +367,10 @@ public class StockManagement extends JPanel implements JPanelView {
             pId = line.getProductID();
         }
         if (pId != null) {
-            stockModel = new StockManagement.ProductStockTableModel(getProductOfName(pId));
+            List<ProductStock> stockMos = getProductStockList(pId);
+            stockModel = new ProductStockTableModel(stockMos);
 
-            jTableProductStock.setModel((TableModel) stockModel);
+            jTableProductStock.setModel(stockModel);
             if (stockModel.getRowCount() > 0) {
                 jTableProductStock.setVisible(true);
             } else {
@@ -379,6 +387,7 @@ public class StockManagement extends JPanel implements JPanelView {
     }
 
     public void sumStockTable() {
+        ensureStockModelNotNull();
         double totalQty = 0;
         double totalVal = 0;
         double lQty = 0;
@@ -557,7 +566,8 @@ public class StockManagement extends JPanel implements JPanelView {
             }
 
             stateToInsert();
-        } catch (BasicException eData) {
+        }
+        catch (BasicException eData) {
             MessageInf msg = new MessageInf(MessageInf.SGN_NOTICE,
                     AppLocal.getIntString("message.cannotsaveinventorydata"), eData);
             msg.show(this);
@@ -566,24 +576,22 @@ public class StockManagement extends JPanel implements JPanelView {
 
     private void saveData(InventoryRecord rec) throws BasicException {
 
-        SentenceExec sent = m_dlSales.getStockDiaryInsert1();
-
         for (int i = 0; i < m_invlines.getCount(); i++) {
             InventoryLine inv = rec.getLines().get(i);
 
-            sent.exec(new Object[]{
-                UUID.randomUUID().toString(),
-                rec.getDate(),
-                rec.getReason().getKey(),
-                rec.getLocation().getID(),
-                inv.getProductID(),
-                inv.getProductAttSetInstId(),
-                rec.getReason().samesignum(inv.getMultiply()),
-                inv.getPrice(),
-                rec.getUser(),
-                rec.getSupplier().getId(),
-                rec.getSupplierDoc()
-            });
+            ProductStockTransaction pst = new ProductStockTransaction();
+            pst.setId(UUID.randomUUID().toString());
+            pst.setTransactionDate(rec.getDate());
+            pst.setReasonId((int) rec.getReason().getKey());
+            pst.setLocationId(rec.getLocation().getID());
+            pst.setProductId(inv.getProductID());
+            pst.setProductAttribSetId(inv.getProductAttSetInstId());
+            pst.setUnits(rec.getReason().samesignum(inv.getMultiply()));
+            pst.setPrice(inv.getPrice());
+            pst.setUserId(rec.getUser());
+            pst.setSupplierId(rec.getSupplier().getId());
+            pst.setSupplierDoc(rec.getSupplierDoc());
+            m_dlSales.saveStockDiary(pst);
         }
 
         clearStockTable();
@@ -603,7 +611,8 @@ public class StockManagement extends JPanel implements JPanelView {
                 script.put("inventoryrecord", invrec);
                 m_TTP.printTicket(script.eval(sresource).toString());
 
-            } catch (ScriptException | TicketPrinterException e) {
+            }
+            catch (ScriptException | TicketPrinterException e) {
                 MessageInf msg = new MessageInf(MessageInf.SGN_WARNING,
                         AppLocal.getIntString("message.cannotprintticket"), e);
                 msg.show(this);
@@ -611,7 +620,7 @@ public class StockManagement extends JPanel implements JPanelView {
         }
     }
 
-    class ProductStockTableModel extends AbstractTableModel {
+    class ProductStockTableModel extends DefaultTableModel {
 
         private static final long serialVersionUID = 1L;
 
@@ -622,12 +631,16 @@ public class StockManagement extends JPanel implements JPanelView {
         private String buy = AppLocal.getIntString("label.tblProdHeaderCol5");
         private String val = AppLocal.getIntString("label.tblProdHeaderCol6");
 
-        private List<ProductStock> stockList;
+        private List<ProductStock> stockList = new ArrayList<>();
 
-        String[] columnNames = {loc, qty, max, min, buy, val};
+        private String[] columnNames = {loc, qty, max, min, buy, val};
+
+        public ProductStockTableModel() {
+            this.stockList = new ArrayList<>();
+        }
 
         public ProductStockTableModel(List<ProductStock> list) {
-            stockList = list;
+            this.stockList = list;
         }
 
         @Override
@@ -637,7 +650,7 @@ public class StockManagement extends JPanel implements JPanelView {
 
         @Override
         public int getRowCount() {
-            return stockList.size();
+            return (this.stockList != null) ? this.stockList.size() :0;
         }
 
         @Override
@@ -660,9 +673,62 @@ public class StockManagement extends JPanel implements JPanelView {
                 case 6:
                     return productStock.getProductId();
                 default:
-                    return "";
+                    return ""; //super.getValueAt(row, column);
             }
 
+        }
+
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            // Example: make only certain columns editable
+            if (column == 0) { // Make the first column uneditable
+                return false;
+            }
+            if(column == 1){
+                return false;
+            }
+            if(column == 2){
+                return false;
+            }
+            if(column == 3){
+                return false;
+            }
+            if(column == 4){
+                return false;
+            }
+            if(column == 5){
+                return false;
+            }
+            if(column == 6){
+                return false;
+            }
+            return super.isCellEditable(row, column); // Default behavior for other columns
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            if (columnIndex == 0) {
+                return String.class;
+            }
+            if (columnIndex == 1) {
+                return Double.class;
+            }
+            if (columnIndex == 2) {
+                return Double.class;
+            }
+            if(columnIndex == 3){
+                return Double.class;
+            }
+            if(columnIndex == 4){
+                return Double.class;
+            }
+            if(columnIndex == 5){
+                return Double.class;
+            }
+            if(columnIndex == 6){
+                return String.class;
+            }
+            return super.getColumnClass(columnIndex); // Default behavior for other columns
         }
 
         public Object setValueAt(int row, int column) {
@@ -1011,8 +1077,7 @@ public class StockManagement extends JPanel implements JPanelView {
 
         m_jBtnDelete.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         m_jBtnDelete.setIcon(new javax.swing.ImageIcon(getClass().getResource("/com/openbravo/images/sale_delete.png"))); // NOI18N
-        m_jBtnDelete.setText(AppLocal.getIntString("button.deleteticket")); // NOI18N
-        m_jBtnDelete.setToolTipText("Delete current Ticket");
+        m_jBtnDelete.setToolTipText(AppLocal.getIntString("button.delete")); // NOI18N
         m_jBtnDelete.setFocusPainted(false);
         m_jBtnDelete.setFocusable(false);
         m_jBtnDelete.setMargin(new java.awt.Insets(0, 4, 0, 4));
@@ -1153,7 +1218,8 @@ public class StockManagement extends JPanel implements JPanelView {
         Date date;
         try {
             date = (Date) Formats.TIMESTAMP.parseValue(m_jdate.getText());
-        } catch (BasicException e) {
+        }
+        catch (BasicException e) {
             date = null;
         }
         date = JCalendarDialog.showCalendarTime(this, date);
@@ -1266,7 +1332,8 @@ public class StockManagement extends JPanel implements JPanelView {
                     line.setProductAttSetInstDesc(attedit.getAttributeSetInstDescription());
                     m_invlines.setLine(i, line);
                 }
-            } catch (BasicException ex) {
+            }
+            catch (BasicException ex) {
                 MessageInf msg = new MessageInf(MessageInf.SGN_WARNING,
                         AppLocal.getIntString("message.cannotfindattributes"), ex);
                 msg.show(this);

@@ -32,6 +32,7 @@ import com.openbravo.pos.customers.CustomerInfoGlobal;
 import com.openbravo.pos.customers.DataLogicCustomers;
 import com.openbravo.pos.customers.JCustomerFinder;
 import com.openbravo.pos.customers.JDialogNewCustomer;
+import com.openbravo.pos.domain.utils.AmountCalculatorUtil;
 import com.openbravo.pos.forms.*;
 import com.openbravo.pos.inventory.ProductStock;
 import com.openbravo.pos.inventory.TaxCategoryInfo;
@@ -273,29 +274,30 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             String currentTicket = m_oTicket.getId();
             try {
                 dlReceipts.updateSharedTicket(currentTicket, m_oTicket, m_oTicket.getPickupId());
-            } catch (BasicException ex) {
+            }
+            catch (BasicException ex) {
                 LOGGER.log(System.Logger.Level.ERROR, "Exception on save current ticket: " + currentTicket, ex);
             }
         }
     }
-    
-    protected JTicketLines getTicketlines(){
+
+    protected JTicketLines getTicketlines() {
         return m_ticketlines;
     }
-    
-    protected JPanelButtons getTicketButtons(){
-        return  m_jbtnconfig;
+
+    protected JPanelButtons getTicketButtons() {
+        return m_jbtnconfig;
     }
-    
-    protected String getTicketId(){
+
+    protected String getTicketId() {
         return m_oTicketExt;
     }
-    
-    protected AppView getAppView(){
+
+    protected AppView getAppView() {
         return m_App;
     }
-    
-    protected DataLogicSales getDataLogicSales(){
+
+    protected DataLogicSales getDataLogicSales() {
         return dlSales;
     }
 
@@ -318,7 +320,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                     inactivityListener = new InactivityListener(logoutAction, delay);
                     inactivityListener.start();
                 }
-            } catch (NumberFormatException ex) {
+            }
+            catch (NumberFormatException ex) {
                 LOGGER.log(System.Logger.Level.WARNING, "Exception on set auto logout timer: ", ex);
             }
         }
@@ -467,7 +470,6 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             m_jSubtotalEuros.setText(null);
             m_jTaxesEuros.setText(null);
             m_jTotalEuros.setText(null);
-            jCheckStock.setText(null);
 
             checkStock();
             stateToZero();
@@ -584,13 +586,15 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
     private void addTicketLine(ProductInfoExt oProduct, double dMul, double dPrice) {
 
-        LOGGER.log(System.Logger.Level.INFO, "Product onoProduct.isVprice: ", oProduct.isVprice());
+        LOGGER.log(System.Logger.Level.INFO, "Product Product.isVprice: ", oProduct.isVprice());
         if (oProduct.isVprice()) {
             TaxInfo tax = taxeslogic.getTaxInfo(oProduct.getTaxCategoryID(), m_oTicket.getCustomer());
 
             if (m_jaddtax.isSelected()) {
-                dPrice /= (1 + tax.getRate());
+                dPrice = AmountCalculatorUtil.calcPriceWithoutTax(dPrice, tax);
             }
+
+            LOGGER.log(System.Logger.Level.INFO, "PriceInclusiveTax ", oProduct.isVprice());
 
             addTicketLine(new TicketLineInfo(oProduct, dMul, dPrice, tax,
                     (java.util.Properties) (oProduct.getProperties().clone())));
@@ -660,8 +664,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                         paintTicketLine(i, line);
                     }
 
-                } catch (Exception ex) {
-                    LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                }
+                catch (Exception ex) {
+                    LOGGER.log(System.Logger.Level.WARNING, "Exception on add ticket line: ", ex);
                     MessageInf msg = new MessageInf(MessageInf.SGN_WARNING,
                             AppLocal.getIntString("message.cannotfindattributes"), ex);
                     msg.show(this);
@@ -688,34 +693,34 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
         return m_oTicket.getLine(index);
     }
 
-    private void removeTicketLine(int i) {
+    private void removeTicketLine(int ticketLineNumber) {
+        LOGGER.log(System.Logger.Level.INFO, "Delete Ticket Line number: "+ticketLineNumber);
         String ticketID = Integer.toString(m_oTicket.getTicketId());
         if (m_oTicket.getTicketId() == 0) {
             ticketID = "Void";
         }
 
-        dlSystem.execLineRemoved(
-                new Object[]{
+        dlSystem.execLineRemoved(new Object[]{
                     m_App.getAppUserView().getUser().getName(),
                     ticketID,
-                    m_oTicket.getLine(i).getProductID(),
-                    m_oTicket.getLine(i).getProductName(),
-                    m_oTicket.getLine(i).getMultiply()
+                    m_oTicket.getLine(ticketLineNumber).getProductID(),
+                    m_oTicket.getLine(ticketLineNumber).getProductName(),
+                    m_oTicket.getLine(ticketLineNumber).getMultiply()
                 }
         );
 
-        if (m_oTicket.getLine(i).isProductCom()) {
-            m_oTicket.removeLine(i);
-            m_ticketlines.removeTicketLine(i);
+        if (m_oTicket.getLine(ticketLineNumber).isProductCom()) {
+            m_oTicket.removeLine(ticketLineNumber);
+            m_ticketlines.removeTicketLine(ticketLineNumber);
         } else {
-            if (i < 1) {
+            if (ticketLineNumber < 1) {
                 if (m_App.hasPermission("sales.DeleteLines")) {
                     int input = JOptionPane.showConfirmDialog(this,
                             AppLocal.getIntString("message.deletelineyes"),
                             AppLocal.getIntString("label.deleteline"), JOptionPane.YES_NO_OPTION);
                     if (input == 0) {
-                        m_oTicket.removeLine(i);
-                        m_ticketlines.removeTicketLine(i);
+                        m_oTicket.removeLine(ticketLineNumber);
+                        m_ticketlines.removeTicketLine(ticketLineNumber);
                     }
                 } else {
                     JOptionPane.showMessageDialog(this,
@@ -723,12 +728,12 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             AppLocal.getIntString("label.deleteline"), JOptionPane.WARNING_MESSAGE);
                 }
             } else {
-                m_oTicket.removeLine(i);
-                m_ticketlines.removeTicketLine(i);
+                m_oTicket.removeLine(ticketLineNumber);
+                m_ticketlines.removeTicketLine(ticketLineNumber);
 
-                while (i < m_oTicket.getLinesCount() && m_oTicket.getLine(i).isProductCom()) {
-                    m_oTicket.removeLine(i);
-                    m_ticketlines.removeTicketLine(i);
+                while (ticketLineNumber < m_oTicket.getLinesCount() && m_oTicket.getLine(ticketLineNumber).isProductCom()) {
+                    m_oTicket.removeLine(ticketLineNumber);
+                    m_ticketlines.removeTicketLine(ticketLineNumber);
                 }
             }
         }
@@ -753,20 +758,17 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
         return oProduct;
     }
 
+    private boolean isPriceInclusiveTaxEnabled() {
+        return m_jaddtax.isSelected();
+    }
+
     private double includeTaxes(String tcid, double dValue) {
         if (m_jaddtax.isSelected()) {
             TaxInfo tax = taxeslogic.getTaxInfo(tcid, m_oTicket.getCustomer());
-            double dTaxRate = tax == null ? 0.0 : tax.getRate();
-            return dValue / (1.0 + dTaxRate);
+            return AmountCalculatorUtil.calcPriceWithoutTax(dValue, tax);
         } else {
             return dValue;
         }
-    }
-
-    private double excludeTaxes(String tcid, double dValue) {
-        TaxInfo tax = taxeslogic.getTaxInfo(tcid, m_oTicket.getCustomer());
-        double dTaxRate = tax == null ? 0.0 : tax.getRate();
-        return dValue / (1.0 + dTaxRate);
     }
 
     /**
@@ -778,8 +780,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
     public double getInputValue() {
         try {
             return Double.parseDouble(m_jPrice.getText());
-        } catch (NumberFormatException ex) {
-            LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+        }
+        catch (NumberFormatException ex) {
+            LOGGER.log(System.Logger.Level.WARNING, "Exception on get input value from user: ", ex);
             return 0.0;
         }
     }
@@ -792,8 +795,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
     public double getPorValue() {
         try {
             return Double.parseDouble(m_jPor.getText().substring(1));
-        } catch (NumberFormatException | StringIndexOutOfBoundsException ex) {
-            LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+        }
+        catch (NumberFormatException | StringIndexOutOfBoundsException ex) {
+            LOGGER.log(System.Logger.Level.WARNING, "Exception on get Por value: ", ex);
             return 1.0;
         }
     }
@@ -832,8 +836,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             } else {
                 incProduct(oProduct);
             }
-        } catch (BasicException ex) {
-            LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+        }
+        catch (BasicException ex) {
+            LOGGER.log(System.Logger.Level.WARNING, "Exception on increment product by code: ", ex);
             stateToZero();
             new MessageInf(ex).show(this);
         }
@@ -851,13 +856,15 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             } else {
                 if (m_jaddtax.isSelected()) {
                     TaxInfo tax = taxeslogic.getTaxInfo(oProduct.getTaxCategoryID(), m_oTicket.getCustomer());
-                    addTicketLine(oProduct, 1.0, dPriceSell / (1.0 + tax.getRate()));
+                    double price = AmountCalculatorUtil.calcPriceWithoutTax(dPriceSell, tax);
+                    addTicketLine(oProduct, 1.0, price);
                 } else {
                     addTicketLine(oProduct, 1.0, dPriceSell);
                 }
             }
-        } catch (BasicException ex) {
-            LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+        }
+        catch (BasicException ex) {
+            LOGGER.log(System.Logger.Level.WARNING, "Exception on increment product by code price: ", ex);
             stateToZero();
             new MessageInf(ex).show(this);
         }
@@ -871,8 +878,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                 if (value != null) {
                     incProduct(prod, value);
                 }
-            } catch (ScaleException ex) {
-                LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+            }
+            catch (ScaleException ex) {
+                LOGGER.log(System.Logger.Level.WARNING, "Exception on increment product: ", ex);
                 Toolkit.getDefaultToolkit().beep();
                 new MessageInf(MessageInf.SGN_WARNING, AppLocal
                         .getIntString("message.noweight"), ex).show(this);
@@ -944,8 +952,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             m_oTicket.setCustomer(newcustomer);
                             m_jTicketId.setText(m_oTicket.getName(m_oTicketExt));
                         }
-                    } catch (BasicException ex) {
-                        LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                    }
+                    catch (BasicException ex) {
+                        LOGGER.log(System.Logger.Level.WARNING, "Exception on process state transition 'C': ", ex);
                         Toolkit.getDefaultToolkit().beep();
                         new MessageInf(MessageInf.SGN_WARNING, AppLocal
                                 .getIntString("message.nocustomer"), ex).show(this);
@@ -1055,32 +1064,28 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             switch (sVariableTypePrefix) {
 //  PRICE - Assign var's
                                 case "02":                                          // now we need to calculate some values
-                                    dPriceSell = oProduct.getPriceSellTax(tax)
-                                            / (1.0 + tax.getRate());                    // selling price with tax
+                                    dPriceSell = AmountCalculatorUtil.calcPriceWithoutTax(oProduct.getPriceSellTax(tax), tax);
                                     dUnits = (Double.parseDouble(sVariableNum)
                                             / 100) / oProduct.getPriceSellTax(tax);     // Units as proportion of selling price
                                     oProduct.setProperty("product.price",
                                             Double.toString(oProduct.getPriceSell())); // push to screen                                    
                                     break;
                                 case "20":                                          // as above
-                                    dPriceSell = oProduct.getPriceSellTax(tax)
-                                            / (1.0 + tax.getRate());
+                                    dPriceSell = AmountCalculatorUtil.calcPriceWithoutTax(oProduct.getPriceSellTax(tax), tax);
                                     dUnits = (Double.parseDouble(sVariableNum)
                                             / 100) / oProduct.getPriceSellTax(tax);
                                     oProduct.setProperty("product.price",
                                             Double.toString(oProduct.getPriceSellTax(tax)));
                                     break;
                                 case "21":
-                                    dPriceSell = oProduct.getPriceSellTax(tax)
-                                            / (1.0 + tax.getRate());
+                                    dPriceSell = AmountCalculatorUtil.calcPriceWithoutTax(oProduct.getPriceSellTax(tax), tax);
                                     dUnits = (Double.parseDouble(sVariableNum)
                                             / 10) / oProduct.getPriceSellTax(tax);
                                     oProduct.setProperty("product.price",
                                             Double.toString(oProduct.getPriceSell()));
                                     break;
                                 case "22":
-                                    dPriceSell = oProduct.getPriceSellTax(tax)
-                                            / (1.0 + tax.getRate());
+                                    dPriceSell = AmountCalculatorUtil.calcPriceWithoutTax(oProduct.getPriceSellTax(tax), tax);
                                     dUnits = (Double.parseDouble(sVariableNum)
                                             / 1) / oProduct.getPriceSellTax(tax);
                                     oProduct.setProperty("product.price",
@@ -1125,7 +1130,7 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
         {
         // price has tax. Remove it from sPriceSell
             TaxInfo tax = taxeslogic.getTaxInfo(oProduct.getTaxCategoryID(), m_oTicket.getCustomer());
-            dPriceSell /= (1.0 + tax.getRate());
+            dPriceSell = AmountCalculatorUtil.calcPriceWithoutTax(dPriceSell, tax);
             oProduct.setProperty("product.price", Double.toString(dPriceSell));
             weight = -1.0;
         break;
@@ -1140,8 +1145,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
                             addTicketLine(oProduct, dUnits, dPriceSell);
                         }
-                    } catch (BasicException ex) {
-                        LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                    }
+                    catch (BasicException ex) {
+                        LOGGER.log(System.Logger.Level.WARNING, "Exception on process state transition for 'EAN' barcode: ", ex);
                         stateToZero();
                         new MessageInf(ex).show(this);
                     }
@@ -1215,11 +1221,13 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             if (m_jaddtax.isSelected()) {
                                 addTicketLine(oProduct, dUnits, dPriceSell);
                             } else {
-                                addTicketLine(oProduct, dUnits, dPriceSell / (1.0 + tax.getRate()));
+                                double priceExcludeTax = AmountCalculatorUtil.calcPriceWithoutTax(dPriceSell, tax);
+                                addTicketLine(oProduct, dUnits, priceExcludeTax);
                             }
                         }
-                    } catch (BasicException ex) {
-                        LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                    }
+                    catch (BasicException ex) {
+                        LOGGER.log(System.Logger.Level.WARNING, "Exception on process state transition for 'UPC' barcode: ", ex);
                         stateToZero();
                         new MessageInf(ex).show(this);
                     }
@@ -1384,8 +1392,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             ProductInfoExt product = getInputProduct();
                             addTicketLine(product, value, product.getPriceSell());
                         }
-                    } catch (ScaleException ex) {
-                        LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                    }
+                    catch (ScaleException ex) {
+                        LOGGER.log(System.Logger.Level.WARNING, "Exception on read product SCALE and add ticket line: ", ex);
                         Toolkit.getDefaultToolkit().beep();
                         new MessageInf(MessageInf.SGN_WARNING, AppLocal.getIntString("message.noweight"), ex).show(this);
                         stateToZero();
@@ -1410,8 +1419,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             newline.setPrice(Math.abs(newline.getPrice()));
                             paintTicketLine(i, newline);
                         }
-                    } catch (ScaleException ex) {
-                        LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                    }
+                    catch (ScaleException ex) {
+                        LOGGER.log(System.Logger.Level.WARNING, "Exception on process state transition '\u00a7' ", ex);
                         Toolkit.getDefaultToolkit().beep();
                         new MessageInf(MessageInf.SGN_WARNING, AppLocal.getIntString("message.noweight"), ex).show(this);
                         stateToZero();
@@ -1726,7 +1736,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                         if (scriptResult == null) {
                             try {
                                 dlSales.saveTicket(ticket, m_App.getInventoryLocation());
-                            } catch (BasicException ex) {
+                            }
+                            catch (BasicException ex) {
                                 LOGGER.log(System.Logger.Level.ERROR, "Exception on save ticket ", ex);
                                 MessageInf msg = new MessageInf(MessageInf.SGN_NOTICE, AppLocal.getIntString("message.nosaveticket"), ex);
                                 msg.show(this);
@@ -1737,7 +1748,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                                 executeEvent(ticket, ticketext, eventName,
                                         new ScriptArg("print", paymentdialog.isPrintSelected()),
                                         new ScriptArg("ticket", ticket));
-                            } catch (Exception ex) {
+                            }
+                            catch (Exception ex) {
                                 LOGGER.log(System.Logger.Level.ERROR, "Exception on executeEvent: " + eventName, ex);
                             }
 
@@ -1750,7 +1762,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
                                 printTicket(scriptName, ticket, ticketext);
                                 Notify(AppLocal.getIntString("notify.printing"));
-                            } catch (Exception ex) {
+                            }
+                            catch (Exception ex) {
                                 LOGGER.log(System.Logger.Level.ERROR, "Exception on printTicket: " + scriptName, ex);
                             }
 
@@ -1765,8 +1778,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                         }
                     }
                 }
-            } catch (TaxesException ex) {
-                LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+            }
+            catch (TaxesException ex) {
+                LOGGER.log(System.Logger.Level.WARNING, "Exception on close ticket: ", ex);
                 MessageInf msg = new MessageInf(MessageInf.SGN_WARNING,
                         AppLocal.getIntString("message.cannotcalculatetaxes"));
                 msg.show(this);
@@ -1775,7 +1789,6 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
             m_oTicket.resetTaxes();
             m_oTicket.resetPayments();
-            jCheckStock.setText("");
 
         }
 
@@ -1828,7 +1841,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             if (ticket.getPickupId() == 0) {
                 try {
                     ticket.setPickupId(dlSales.getNextPickupIndex());
-                } catch (BasicException ex) {
+                }
+                catch (BasicException ex) {
                     LOGGER.log(System.Logger.Level.WARNING, "Exception on get pickup id: ", ex);
                     ticket.setPickupId(0);
                 }
@@ -1856,7 +1870,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
                 processTemaplated = script.eval(sresource).toString();
                 m_TTP.printTicket(processTemaplated, ticket);
-            } catch (ScriptException | TicketPrinterException ex) {
+            }
+            catch (ScriptException | TicketPrinterException ex) {
                 LOGGER.log(System.Logger.Level.WARNING, "Exception on processing/Print resource id: " + sresourcename, ex);
                 LOGGER.log(System.Logger.Level.DEBUG, "Exeception PROCESSED TEMPLATE: \n\r+++++++++++++\n\r " + processTemaplated + "\n\r+++++++++++++\n\r");
                 MessageInf msg = new MessageInf(MessageInf.SGN_WARNING, AppLocal.getIntString("message.cannotprintticket"), ex);
@@ -1902,10 +1917,12 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
             Map reportparams = new HashMap();
 
+            String reportBundleName = resourcefile + ".properties";
             try {
-                reportparams.put("REPORT_RESOURCE_BUNDLE", ResourceBundle.getBundle(resourcefile + ".properties"));
-            } catch (MissingResourceException ex) {
-                LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                reportparams.put("REPORT_RESOURCE_BUNDLE", ResourceBundle.getBundle(reportBundleName));
+            }
+            catch (MissingResourceException ex) {
+                LOGGER.log(System.Logger.Level.WARNING, "Exception on set report bundle file: " + reportBundleName, ex);
             }
             reportparams.put("TAXESLOGIC", taxeslogic);
 
@@ -1919,8 +1936,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
             JRPrinterAWT300.printPages(jp, 0, jp.getPages().size() - 1, service);
 
-        } catch (JRException ex) {
-            LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+        }
+        catch (JRException ex) {
+            LOGGER.log(System.Logger.Level.WARNING, "Exception on print report with resource file: " + resourcefile, ex);
             MessageInf msg = new MessageInf(MessageInf.SGN_WARNING, AppLocal.getIntString("message.cannotloadreport") + "<br>" + resourcefile, ex);
             msg.show(this);
         }
@@ -1953,7 +1971,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                                         advDisplay1.setProductImage(prod.getImage());
                                     }
                                 }
-                            } catch (BasicException ex) {
+                            }
+                            catch (BasicException ex) {
                                 LOGGER.log(System.Logger.Level.WARNING, "", ex);
                             }
                         }
@@ -1977,16 +1996,20 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
     }
 
     private void visorTicketLine(TicketLineInfo oLine) {
+        String resourceName = "Printer.TicketLine";
         if (oLine == null) {
             m_App.getDeviceTicket().getDeviceDisplay().clearVisor();
         } else {
             try {
                 ScriptEngine script = ScriptFactory.getScriptEngine(ScriptFactory.VELOCITY);
                 script.put("ticketline", oLine);
-                m_TTP.printTicket(script.eval(dlSystem.getResourceAsXML("Printer.TicketLine")).toString());
+                String resourcePrintTemplate = dlSystem.getResourceAsXML(resourceName);
+                String generatedPrintContent = script.eval(resourcePrintTemplate).toString();
+                m_TTP.printTicket(generatedPrintContent);
 
-            } catch (ScriptException | TicketPrinterException ex) {
-                LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+            }
+            catch (ScriptException | TicketPrinterException ex) {
+                LOGGER.log(System.Logger.Level.WARNING, "Exception execute visor ticket line with resource name: " + resourceName, ex);
                 MessageInf msg = new MessageInf(MessageInf.SGN_WARNING, AppLocal.getIntString("message.cannotprintline"), ex);
                 msg.show(JPanelTicket.this);
             }
@@ -1999,7 +2022,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
         try {
             scr.setSelectedIndex(m_ticketlines.getSelectedIndex());
             return scr.evalScript(dlSystem.getResourceAsXML(resource), args);
-        } catch (ScriptException ex) {
+        }
+        catch (ScriptException ex) {
             LOGGER.log(System.Logger.Level.WARNING, "Exception on executing script with resource id: " + resource, ex);
             MessageInf msg = new MessageInf(MessageInf.SGN_WARNING, AppLocal.getIntString("message.cannotexecute"), ex);
             msg.show(this);
@@ -2078,59 +2102,7 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
     }
 
     public void checkStock() {
-
-        int i = m_ticketlines.getSelectedIndex();
-        if (i >= 0) {
-            if (inactivityListener != null) {
-                inactivityListener.stop();
-            }
-            try {
-                TicketLineInfo line = m_oTicket.getLine(i);
-                String pId = line.getProductID();
-                String location = m_App.getInventoryLocation();
-                ProductStock checkProduct;
-                checkProduct = dlSales.getProductStockState(pId, location);
-
-                if (checkProduct != null) {
-
-                    if (checkProduct.getUnits() <= 0) {
-                        jCheckStock.setForeground(Color.magenta);
-                    } else {
-                        jCheckStock.setForeground(Color.darkGray);
-                    }
-
-                    String content;
-
-                    if (!location.equals(checkProduct.getLocation())) {
-                        content = AppLocal.getIntString("message.location.current");
-                        JFrame frame = new JFrame();
-                        JOptionPane.showMessageDialog(frame,
-                                content,
-                                "Info",
-                                JOptionPane.INFORMATION_MESSAGE);
-                    } else {
-                        double dUnits = checkProduct.getUnits();
-                        int iUnits;
-                        iUnits = (int) dUnits;
-
-                        jCheckStock.setText(Integer.toString(iUnits));
-                    }
-
-                } else {
-                    jCheckStock.setText(null);
-                }
-            } catch (BasicException ex) {
-                LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
-            } finally {
-
-                if (inactivityListener != null) {
-                    inactivityListener.restart();
-                }
-            }
-        } else {
-            Toolkit.getDefaultToolkit().beep();
-        }
-
+        checkAndShowStockForLine(false);
     }
 
     public void checkCustomer() {
@@ -2450,11 +2422,6 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
         jCheckStock.setPreferredSize(new java.awt.Dimension(80, 45));
         jCheckStock.setRequestFocusEnabled(false);
         jCheckStock.setVerticalTextPosition(javax.swing.SwingConstants.TOP);
-        jCheckStock.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                jCheckStockMouseClicked(evt);
-            }
-        });
         jCheckStock.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jCheckStockActionPerformed(evt);
@@ -2630,16 +2597,12 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
         jPanelScannerLayout.setHorizontalGroup(
             jPanelScannerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanelScannerLayout.createSequentialGroup()
+                .addContainerGap()
                 .addGroup(jPanelScannerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanelScannerLayout.createSequentialGroup()
-                        .addContainerGap()
-                        .addGroup(jPanelScannerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(m_jPor, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 9, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(m_jKeyFactory, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 8, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                    .addGroup(jPanelScannerLayout.createSequentialGroup()
-                        .addContainerGap()
-                        .addComponent(m_jaddtax)))
+                    .addGroup(jPanelScannerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(m_jPor, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 9, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(m_jKeyFactory, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 8, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(m_jaddtax))
                 .addGroup(jPanelScannerLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanelScannerLayout.createSequentialGroup()
                         .addComponent(m_jPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 187, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2701,7 +2664,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                     paintTicketLine(i, newline);
                 }
 
-            } catch (BasicException e) {
+            }
+            catch (BasicException e) {
                 new MessageInf(e).show(this);
             }
         }
@@ -2725,7 +2689,6 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             Toolkit.getDefaultToolkit().beep();
         } else {
             removeTicketLine(i);
-            jCheckStock.setText("");
         }
     }//GEN-LAST:event_m_jDeleteActionPerformed
 
@@ -2766,7 +2729,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
                             AppLocal.getIntString("message.title"),
                             JOptionPane.INFORMATION_MESSAGE);
                 }
-            } catch (BasicException ex) {
+            }
+            catch (BasicException ex) {
                 LOGGER.log(System.Logger.Level.WARNING, "Exception while Open Product Atribute Editor: ", ex);
             }
         }
@@ -2802,7 +2766,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
             scriptEngine.eval(rScript);
 
-        } catch (ScriptException ex) {
+        }
+        catch (ScriptException ex) {
             LOGGER.log(System.Logger.Level.WARNING, "Exception on executing script: " + scriptId, ex);
         }
 
@@ -2865,82 +2830,8 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
     private void jCheckStockActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckStockActionPerformed
 
-        checkStock();
+        checkAndShowStockForLine(true);
     }//GEN-LAST:event_jCheckStockActionPerformed
-
-    private void jCheckStockMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jCheckStockMouseClicked
-        if (evt.getClickCount() == 2) {
-            if (inactivityListener != null) {
-                inactivityListener.stop();
-            }
-
-            int i = m_ticketlines.getSelectedIndex();
-            if (i < 0) {
-                Toolkit.getDefaultToolkit().beep();
-            } else {
-                try {
-                    TicketLineInfo line = m_oTicket.getLine(i);
-                    String pId = line.getProductID();
-                    String location = m_App.getInventoryLocation();
-                    ProductStock checkProduct = dlSales.getProductStockState(pId, location);
-
-                    Double pMin;
-                    Double pMax;
-                    Double pUnits;
-                    Date pMemoDate;
-                    String content;
-
-                    if (!location.equals(checkProduct.getLocation())) {
-                        content = AppLocal.getIntString("message.location.current");
-                    } else {
-                        if (checkProduct.getMinimum() != null) {
-                            pMin = checkProduct.getMinimum();
-                        } else {
-                            pMin = 0.;
-                        }
-                        if (checkProduct.getMaximum() != null) {
-                            pMax = checkProduct.getMaximum();
-                        } else {
-                            pMax = 0.;
-                        }
-                        if (checkProduct.getUnits() != null) {
-                            pUnits = checkProduct.getUnits();
-                        } else {
-                            pUnits = 0.;
-                        }
-                        if (checkProduct.getMemoDate() != null) {
-                            pMemoDate = checkProduct.getMemoDate();
-                        } else {
-                            pMemoDate = null;
-                        }
-
-                        content = "<html>"
-                                + "<b>" + AppLocal.getIntString("label.currentstock")
-                                + " : " + "</b>" + pUnits + "<br>"
-                                + "<b>" + AppLocal.getIntString("label.maximum")
-                                + " : " + "</b>" + pMax + "<br>"
-                                + "<b>" + AppLocal.getIntString("label.minimum")
-                                + " : " + "</b>" + pMin + "<br>"
-                                + "<b>" + AppLocal.getIntString("label.proddate")
-                                + " : " + "</b>" + pMemoDate + "<br>";
-                    }
-
-                    JFrame frame = new JFrame();
-                    JOptionPane.showMessageDialog(frame,
-                            content,
-                            "Info",
-                            JOptionPane.INFORMATION_MESSAGE);
-
-                } catch (BasicException ex) {
-                    LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
-                }
-            }
-
-            if (inactivityListener != null) {
-                inactivityListener.restart();
-            }
-        }
-    }//GEN-LAST:event_jCheckStockMouseClicked
 
     private void jTBtnShowActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTBtnShowActionPerformed
         if (jTBtnShow.isSelected()) {
@@ -2980,8 +2871,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
             if (m_customerInfo != null) {
                 try {
                     m_oTicket.setCustomer(m_customerInfo);
-                } catch (Exception ex) {
-                    LOGGER.log(System.Logger.Level.WARNING, "Exception on Select Customer: ", ex);
+                }
+                catch (Exception ex) {
+                    LOGGER.log(System.Logger.Level.WARNING, "Exception on Create new Customer: ", ex);
                 }
             }
         }
@@ -3009,8 +2901,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
                         m_jTicketId.setText(m_oTicket.getName(m_oTicketExt));
 
-                    } catch (BasicException ex) {
-                        LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                    }
+                    catch (BasicException ex) {
+                        LOGGER.log(System.Logger.Level.WARNING, "Exception on Select Customer: ", ex);
                         MessageInf msg = new MessageInf(MessageInf.SGN_WARNING,
                                 AppLocal.getIntString("message.cannotfindcustomer"), ex);
                         msg.show(this);
@@ -3045,8 +2938,9 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
 
                             m_jTicketId.setText(m_oTicket.getName());
 
-                        } catch (BasicException ex) {
-                            LOGGER.log(System.Logger.Level.WARNING, "Exception on: ", ex);
+                        }
+                        catch (BasicException ex) {
+                            LOGGER.log(System.Logger.Level.WARNING, "Exception on change customer: ", ex);
                             MessageInf msg = new MessageInf(MessageInf.SGN_WARNING,
                                     AppLocal.getIntString("message.cannotfindcustomer"), ex);
                             msg.show(this);
@@ -3167,6 +3061,85 @@ public abstract class JPanelTicket extends JPanel implements JPanelView, Tickets
     /* Remote Orders Display - Utils methods */
     private RemoteOrderDisplay getRemoteOrderDisplay() {
         return new RemoteOrderDisplay(m_App, m_oTicket, m_oTicketExt, getPickupString(m_oTicket));
+    }
+
+    private void checkAndShowStockForLine(boolean showDialog) {
+        if (inactivityListener != null) {
+            inactivityListener.stop();
+        }
+
+        int tckLineNumber = m_ticketlines.getSelectedIndex();
+        if (tckLineNumber >= 0) {
+            try {
+                TicketLineInfo line = m_oTicket.getLine(tckLineNumber);
+                String pId = line.getProductID();
+                String location = m_App.getInventoryLocation();
+                ProductStock productStock = null;
+                if (location != null && pId != null) {
+                    productStock = dlSales.getProductStockState(pId, location);
+                }
+
+                Double pMin = 0.0;
+                Double pMax = 0.0;
+                Double pUnits = 0.0;
+                Date pMemoDate = null;
+                String content = "";
+
+                if (productStock == null || location == null || !location.equals(productStock.getLocation())) {
+                    content = AppLocal.getIntString("message.location.current");
+                } else {
+                    if (productStock.getMinimum() != null) {
+                        pMin = productStock.getMinimum();
+                    }
+
+                    if (productStock.getMaximum() != null) {
+                        pMax = productStock.getMaximum();
+                    }
+
+                    if (productStock.getUnits() != null) {
+                        pUnits = productStock.getUnits();
+                    }
+
+                    if (productStock.getMemoDate() != null) {
+                        pMemoDate = productStock.getMemoDate();
+                    }
+
+                    content = "<html>"
+                            + "<b>" + AppLocal.getIntString("label.currentstock")
+                            + " : " + "</b>" + pUnits + "<br>"
+                            + "<b>" + AppLocal.getIntString("label.maximum")
+                            + " : " + "</b>" + pMax + "<br>"
+                            + "<b>" + AppLocal.getIntString("label.minimum")
+                            + " : " + "</b>" + pMin + "<br>"
+                            + "<b>" + AppLocal.getIntString("label.proddate")
+                            + " : " + "</b>" + pMemoDate + "<br>";
+                }
+
+                if (pUnits <= 0) {
+                    jCheckStock.setForeground(Color.magenta);
+                } else {
+                    jCheckStock.setForeground(Color.darkGray);
+                }
+
+                if (showDialog) {
+                    JFrame frame = new JFrame();
+                    JOptionPane.showMessageDialog(frame,
+                            content,
+                            "Info",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+
+            }
+            catch (BasicException ex) {
+                LOGGER.log(System.Logger.Level.WARNING, "Exception on check stock for line number: ", ex);
+            }
+        } else {
+            Toolkit.getDefaultToolkit().beep();
+        }
+
+        if (inactivityListener != null) {
+            inactivityListener.restart();
+        }
     }
 
     private class LogoutAction extends AbstractAction {

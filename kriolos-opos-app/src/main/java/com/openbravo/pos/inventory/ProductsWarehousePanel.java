@@ -54,7 +54,7 @@ public class ProductsWarehousePanel extends JPanelTable2 {
         m_paramslocation =  new JParamsLocation();
         m_paramslocation.init(app);
         m_paramslocation.addActionListener(new ReloadActionListener());
-
+        
         row = new Row(
                 new Field("ID", Datas.STRING, Formats.STRING),
                 new Field("PRODUCT_ID", Datas.STRING, Formats.STRING),

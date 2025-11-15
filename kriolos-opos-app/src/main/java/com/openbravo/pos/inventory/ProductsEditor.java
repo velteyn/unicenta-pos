@@ -17,8 +17,6 @@ package com.openbravo.pos.inventory;
 
 import com.openbravo.basic.BasicException;
 import com.openbravo.data.gui.ComboBoxValModel;
-import com.openbravo.data.loader.SentenceList;
-import com.openbravo.data.loader.SentenceFind;
 import com.openbravo.data.user.DirtyManager;
 import com.openbravo.data.user.EditorRecord;
 import com.openbravo.format.Formats;
@@ -33,8 +31,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import com.openbravo.beans.JCalendarDialog;
-import com.openbravo.data.loader.Session;
-import com.openbravo.pos.forms.AppProperties;
+import com.openbravo.pos.domain.utils.AmountCalculatorUtil;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -51,10 +48,6 @@ import javax.swing.table.AbstractTableModel;
 import com.openbravo.pos.forms.DataLogicSystem;
 import java.awt.Color;
 import java.io.File;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import javax.imageio.ImageIO;
 import javax.swing.JColorChooser;
 import javax.swing.JFileChooser;
@@ -69,54 +62,29 @@ import org.netbeans.validation.api.builtin.stringvalidation.StringValidators;
 public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPanel implements EditorRecord {
 
     private static final Logger LOGGER = Logger.getLogger(ProductsEditor.class.getName());
-    private AppProperties m_props;
-
     private static final long serialVersionUID = 1L;
-    private String productId;
 
-    private final SentenceList m_sentcat;
     private ComboBoxValModel m_CategoryModel;
-
-    private final SentenceList taxcatsent;
     private ComboBoxValModel taxcatmodel;
-
-    private final SentenceList attsent;
     private ComboBoxValModel attmodel;
-
-    private final SentenceList m_sentsuppliers;
     private ComboBoxValModel m_SuppliersModel;
-
-    private final SentenceList taxsent;
-    private TaxesLogic taxeslogic;
-
-    private Double pricesell;
-    private boolean priceselllock = false;
-
-    private boolean reportlock = false;
-    private int btn;
-    private Color bckgColor = null;
-
-    private SentenceList m_sentuom;
     private ComboBoxValModel m_UomModel;
 
+    private String productId;
+    private Double prodPricesell;
+    private boolean prodPricesellLock = false;
+    private boolean prodFieldEditLock = false;
+    private int customOptionMode;
+    private Color bckgColor = null;
+
+    private AppView appView; 
+
+    private TaxesLogic taxeslogic;
     private DirtyManager m_Dirty;
     private DataLogicSales dlSales;
-    private DataLogicSystem m_dlSystem;
-    private DataLogicSuppliers m_dlSuppliers;
+    private DataLogicSuppliers dlSuppliers;
+    private DataLogicSystem dlSystem; 
 
-    private AppView appView;
-
-    private final SentenceFind loadimage; // JG 3 feb 16 speedup    
-
-    private Session s;
-    private Connection con;
-    private Statement stmt;
-    private PreparedStatement pstmt;
-    private String SQL;
-    private ResultSet rs;
-    private AppView m_App;
-
-    protected DataLogicSystem dlSystem;
 
     /**
      * Creates new form JEditProduct
@@ -128,28 +96,15 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         setAppView(app);
         dlSales = (DataLogicSales) app.getBean("com.openbravo.pos.forms.DataLogicSales");
-        m_dlSystem = (DataLogicSystem) app.getBean("com.openbravo.pos.forms.DataLogicSystem");
-        m_dlSuppliers = (DataLogicSuppliers) app.getBean("com.openbravo.pos.suppliers.DataLogicSuppliers");
+        dlSystem = (DataLogicSystem) app.getBean("com.openbravo.pos.forms.DataLogicSystem");
+        dlSuppliers = (DataLogicSuppliers) app.getBean("com.openbravo.pos.suppliers.DataLogicSuppliers");
 
         initComponents();
-
-        loadimage = dlSales.getProductImage(); // JG 3 feb 16 speedup
-
-        taxsent = dlSales.getTaxList();
-
-        m_sentcat = dlSales.getCategoriesList();
+        
         m_CategoryModel = new ComboBoxValModel();
-
-        taxcatsent = dlSales.getTaxCategoriesList();
         taxcatmodel = new ComboBoxValModel();
-
-        attsent = dlSales.getAttributeSetList();
         attmodel = new ComboBoxValModel();
-
-        m_sentsuppliers = m_dlSuppliers.getSupplierList();
         m_SuppliersModel = new ComboBoxValModel();
-
-        m_sentuom = dlSales.getUomList();
         m_UomModel = new ComboBoxValModel();
 
 // Tab General        
@@ -174,7 +129,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         m_jService.addActionListener(dirty);
         m_jCheckWarrantyReceipt.addActionListener(dirty);
-        m_jComment.addActionListener(dirty);
+        m_jCOM.addActionListener(dirty);
         m_jScale.addActionListener(dirty);
         m_jVprice.addActionListener(dirty);
         m_jstockcost.getDocument().addDocumentListener(dirty);
@@ -228,22 +183,22 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     @SuppressWarnings("unchecked")
     public void activate() throws BasicException {
 
-        taxeslogic = new TaxesLogic(taxsent.list());
+        taxeslogic = new TaxesLogic(dlSales.getTaxListAll());
 
-        m_CategoryModel = new ComboBoxValModel(m_sentcat.list());
+        m_CategoryModel = new ComboBoxValModel(dlSales.getCategoriesListAll());
         m_jCategory.setModel(m_CategoryModel);
-
-        taxcatmodel = new ComboBoxValModel(taxcatsent.list());
+  
+        taxcatmodel = new ComboBoxValModel(dlSales.getTaxCategoriesListAll());
         m_jTax.setModel(taxcatmodel);
 
-        attmodel = new ComboBoxValModel(attsent.list());
+        attmodel = new ComboBoxValModel( dlSales.getAttributeSetListAll());
         attmodel.add(0, null);
         m_jAtt.setModel(attmodel);
 
-        m_SuppliersModel = new ComboBoxValModel(m_sentsuppliers.list());
+        m_SuppliersModel = new ComboBoxValModel(dlSuppliers.getSupplierListAll());
         m_jSupplier.setModel(m_SuppliersModel);
 
-        m_UomModel = new ComboBoxValModel(m_sentuom.list());
+        m_UomModel = new ComboBoxValModel(dlSales.getUomListAll());
         m_jUom.setModel(m_UomModel);
 
         String pId = null;
@@ -262,7 +217,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     @Override
     public void writeValueEOF() {
 
-        reportlock = true;
+        prodFieldEditLock = true;
 
         m_jTitle.setText(AppLocal.getIntString("label.recordeof"));
 
@@ -288,7 +243,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jPrintTo.setSelectedIndex(1);
         m_jService.setSelected(false);
         m_jCheckWarrantyReceipt.setSelected(false);
-        m_jComment.setSelected(false);
+        m_jCOM.setSelected(false);
         m_jScale.setSelected(false);
         m_jVprice.setSelected(false);
         m_jstockcost.setText("0");
@@ -309,7 +264,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 // Tab Properties
         txtAttributes.setText(null);
 
-        reportlock = false;
+        prodFieldEditLock = false;
 
 // Tab General
         m_jRef.setEnabled(false);
@@ -334,7 +289,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jPrintTo.setEnabled(false);
         m_jService.setEnabled(false);
         m_jCheckWarrantyReceipt.setEnabled(false);
-        m_jComment.setEnabled(false);
+        m_jCOM.setEnabled(false);
         m_jScale.setEnabled(false);
         m_jVprice.setEnabled(false);
         m_jstockcost.setEnabled(false);
@@ -355,13 +310,13 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         calculateMargin();
         calculatePriceSellTax();
-        calculateGP();
+        calculateGrossProfitPercentage();
     }
 
     @Override
     public void writeValueInsert() {
 
-        reportlock = true;
+        prodFieldEditLock = true;
 
         m_jTitle.setText(AppLocal.getIntString("label.recordnew"));
 
@@ -386,7 +341,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jPrintTo.setSelectedIndex(1);
         m_jService.setSelected(false);
         m_jCheckWarrantyReceipt.setSelected(false);
-        m_jComment.setSelected(false);
+        m_jCOM.setSelected(false);
         m_jScale.setSelected(false);
         m_jVprice.setSelected(false);
         m_jstockcost.setText("0");
@@ -404,7 +359,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 // Tab Properties
         txtAttributes.setText(null);
 
-        reportlock = false;
+        prodFieldEditLock = false;
 
 // Tab General
         m_jRef.setEnabled(true);
@@ -429,7 +384,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jPrintTo.setEnabled(true);
         m_jService.setEnabled(true);
         m_jCheckWarrantyReceipt.setEnabled(true);
-        m_jComment.setEnabled(true);
+        m_jCOM.setEnabled(true);
         m_jScale.setEnabled(true);
         m_jVprice.setEnabled(true);
         m_jstockcost.setEnabled(true);
@@ -450,7 +405,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         calculateMargin();
         calculatePriceSellTax();
-        calculateGP();
+        calculateGrossProfitPercentage();
     }
 
     /**
@@ -469,14 +424,14 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         myprod[3] = m_jCodetype.getSelectedItem();
         myprod[4] = m_jName.getText();
         myprod[5] = Formats.CURRENCY.parseValue(m_jPriceBuy.getText());
-        myprod[6] = pricesell;
+        myprod[6] = prodPricesell;
         myprod[7] = m_CategoryModel.getSelectedKey();
         myprod[8] = taxcatmodel.getSelectedKey();
         myprod[9] = attmodel.getSelectedKey();
         myprod[10] = Formats.CURRENCY.parseValue(m_jstockcost.getText());
         myprod[11] = Formats.DOUBLE.parseValue(m_jstockvolume.getText());
         myprod[12] = m_jImage.getImage();
-        myprod[13] = m_jComment.isSelected();
+        myprod[13] = m_jCOM.isSelected();
         myprod[14] = m_jScale.isSelected();
         myprod[15] = m_jConstant.isSelected();
         myprod[16] = m_jPrintKB.isSelected();
@@ -507,12 +462,12 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     @Override
     public void writeValueEdit(Object value) {
 
-        reportlock = true;
+        prodFieldEditLock = true;
 
         setValues(value);
 
         txtAttributes.setCaretPosition(0);
-        reportlock = false;
+        prodFieldEditLock = false;
 
 // Tab General
         m_jRef.setEnabled(true);
@@ -537,13 +492,12 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jPrintTo.setEnabled(true);
         m_jService.setEnabled(true);
         m_jCheckWarrantyReceipt.setEnabled(true);
-        m_jComment.setEnabled(true);
+        m_jCOM.setEnabled(true);
         m_jScale.setEnabled(true);
         m_jVprice.setEnabled(true);
         m_jstockcost.setEnabled(true);
         m_jstockvolume.setEnabled(true);
         m_jdate.setEnabled(true);
-        jTableProductStock.setVisible(false);
         jTableProductStock.setEnabled(true);
 
 // Tab Image        
@@ -563,7 +517,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         calculateMargin();
         calculatePriceSellTax();
-        calculateGP();
+        calculateGrossProfitPercentage();
     }
 
     private void setValues(Object value) {
@@ -585,7 +539,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jstockvolume.setText(Formats.DOUBLE.formatValue((Double) myprod[11]));
 //  JG 3 feb 16 speedup   m_jImage.setImage((BufferedImage) myprod[12]); 
         m_jImage.setImage(findImage(productId));
-        m_jComment.setSelected(((Boolean) myprod[13]));
+        m_jCOM.setSelected(((Boolean) myprod[13]));
         m_jScale.setSelected(((Boolean) myprod[14]));
         m_jConstant.setSelected(((Boolean) myprod[15]));
         m_jPrintKB.setSelected(((Boolean) myprod[16]));
@@ -613,12 +567,12 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     @Override
     public void writeValueDelete(Object value) {
 
-        reportlock = true;
+        prodFieldEditLock = true;
         setValues(value);
 
         txtAttributes.setCaretPosition(0);
 
-        reportlock = false;
+        prodFieldEditLock = false;
 
 // Tab General
         m_jRef.setEnabled(false);
@@ -643,7 +597,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jSupplier.setEnabled(false);
         m_jService.setEnabled(false);
         m_jCheckWarrantyReceipt.setEnabled(false);
-        m_jComment.setEnabled(false);
+        m_jCOM.setEnabled(false);
         m_jScale.setEnabled(false);
         m_jVprice.setEnabled(false);
         m_jstockcost.setEnabled(false);
@@ -665,7 +619,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         calculateMargin();
         calculatePriceSellTax();
-        calculateGP();
+        calculateGrossProfitPercentage();
     }
 
     public void resetTranxTable() {
@@ -675,8 +629,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         jTableProductStock.getColumnModel().getColumn(1).setPreferredWidth(50);
         jTableProductStock.getColumnModel().getColumn(2).setPreferredWidth(50);
         jTableProductStock.getColumnModel().getColumn(3).setPreferredWidth(50);
-        */
-
+         */
         jTableProductStock.repaint();
 
     }
@@ -694,8 +647,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         Long lDateTime = new Date().getTime();
 
-        if (!reportlock) {
-            reportlock = true;
+        if (!prodFieldEditLock) {
+            prodFieldEditLock = true;
 
             if (m_jRef == null) {
                 m_jCode.setText(Long.toString(lDateTime));
@@ -704,7 +657,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                     m_jCode.setText(m_jRef.getText());
                 }
             }
-            reportlock = false;
+            prodFieldEditLock = false;
         }
     }
 
@@ -713,7 +666,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         List<ProductStock> productStockList = new ArrayList<>();
         try {
             productStockList = dlSales.getProductStockList(pId);
-        } catch (BasicException ex) {
+        }
+        catch (BasicException ex) {
             LOGGER.log(Level.SEVERE, "ProductStock for PID: " + pId, ex);
         }
 
@@ -863,71 +817,70 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         return "#" + Integer.toHexString(color.getRGB() & 0x00ffffff);
     }
 
-// 3 feb 16 speed test
-    private BufferedImage findImage(Object id) {
-        try {
-            return (BufferedImage) loadimage.find(id);
-        } catch (BasicException e) {
-            return null;
-        }
+
+    private BufferedImage findImage(String id) {
+        return dlSales.getProductImage(id);
     }
-// end of speed test
+
 
     private void calculateMargin() {
 
-        if (!reportlock) {
-            reportlock = true;
+        if (!prodFieldEditLock) {
+            prodFieldEditLock = true;
 
             Double dPriceBuy = readCurrency(m_jPriceBuy.getText());
-            Double dPriceSell = pricesell;
+            Double dPriceSell = prodPricesell;
 
             if (dPriceBuy == null || dPriceSell == null) {
                 m_jmargin.setText(null);
             } else {
-                m_jmargin.setText(Formats.PERCENT.formatValue(dPriceSell / dPriceBuy - 1.0));
+                double margin = AmountCalculatorUtil.calcMarginPercentage(dPriceSell, dPriceBuy);
+                m_jmargin.setText(Formats.PERCENT.formatValue(margin));
             }
-            reportlock = false;
+            prodFieldEditLock = false;
         }
     }
 
     private void calculatePriceSellTax() {
 
-        if (!reportlock) {
-            reportlock = true;
+        if (!prodFieldEditLock) {
+            prodFieldEditLock = true;
 
-            Double dPriceSell = pricesell;
-
-            if (dPriceSell == null) {
+            if (prodPricesell == null) {
                 m_jPriceSellTax.setText(null);
             } else {
                 double dTaxRate = taxeslogic.getTaxRate((TaxCategoryInfo) taxcatmodel.getSelectedItem());
-                m_jPriceSellTax.setText(Formats.CURRENCY.formatValue(dPriceSell * (1.0 + dTaxRate)));
+                Double dPriceSell = AmountCalculatorUtil.calcPriceWithTaxInclusive(prodPricesell, dTaxRate);
+                m_jPriceSellTax.setText(Formats.CURRENCY.formatValue(dPriceSell));
             }
-            reportlock = false;
+            prodFieldEditLock = false;
         }
     }
 
-    private void calculateGP() {
+    private void calculateGrossProfitPercentage() {
 
-        if (!reportlock) {
-            reportlock = true;
+        Double dPriceBuy = readCurrency(m_jPriceBuy.getText());
+        Double dPriceSell = readCurrency(m_jPriceSell.getText());
 
-            Double dPriceBuy = readCurrency(m_jPriceBuy.getText());
-            Double dPriceSell = readCurrency(m_jPriceSell.getText());
+        LOGGER.log(Level.SEVERE, "dPriceBuy: " + dPriceBuy + "; dPriceSell: " + dPriceSell);
+
+        if (!prodFieldEditLock) {
+            prodFieldEditLock = true;
 
             if (dPriceBuy == null || dPriceSell == null) {
                 m_jGrossProfit.setText(null);
             } else {
-                m_jGrossProfit.setText(Formats.PERCENT.formatValue((dPriceSell - dPriceBuy) / dPriceSell));
+                double grossGP = AmountCalculatorUtil.calcGrossProfit(dPriceSell, dPriceBuy);
+                m_jGrossProfit.setText(Formats.PERCENT.formatValue(grossGP));
             }
-            reportlock = false;
+            prodFieldEditLock = false;
         }
     }
 
     private void calculatePriceSellfromMargin() {
 
-        if (!reportlock) {
-            reportlock = true;
+        if (!prodFieldEditLock) {
+            prodFieldEditLock = true;
 
             Double dPriceBuy = readCurrency(m_jPriceBuy.getText());
             Double dMargin = readPercent(m_jmargin.getText());
@@ -935,18 +888,19 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
             if (dMargin == null || dPriceBuy == null) {
                 setPriceSell(null);
             } else {
-                setPriceSell(dPriceBuy * (1.0 + dMargin));
+                double shellPrice = AmountCalculatorUtil.calcSellPriceWithMargin(dPriceBuy, dMargin);
+                setPriceSell(shellPrice);
             }
 
-            reportlock = false;
+            prodFieldEditLock = false;
         }
 
     }
 
     private void calculatePriceSellfromPST() {
 
-        if (!reportlock) {
-            reportlock = true;
+        if (!prodFieldEditLock) {
+            prodFieldEditLock = true;
 
             Double dPriceSellTax = readCurrency(m_jPriceSellTax.getText());
 
@@ -954,20 +908,29 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                 setPriceSell(null);
             } else {
                 double dTaxRate = taxeslogic.getTaxRate((TaxCategoryInfo) taxcatmodel.getSelectedItem());
-                setPriceSell(dPriceSellTax / (1.0 + dTaxRate));
+                double netShellPrice = AmountCalculatorUtil.calcPriceWithoutTax(dPriceSellTax, dTaxRate);
+                setPriceSell(netShellPrice);
             }
 
-            reportlock = false;
+            prodFieldEditLock = false;
         }
     }
 
     private void setPriceSell(Double value) {
 
-        if (!priceselllock) {
-            priceselllock = true;
-            pricesell = value;
-            m_jPriceSell.setText(Formats.CURRENCY.formatValue(pricesell));
-            priceselllock = false;
+        if (!prodPricesellLock) {
+            prodPricesellLock = true;
+            prodPricesell = value;
+            m_jPriceSell.setText(Formats.CURRENCY.formatValue(prodPricesell));
+            prodPricesellLock = false;
+        }
+    }
+
+    private void setPriceSellFromUI() {
+        if (!prodPricesellLock) {
+            prodPricesellLock = true;
+            prodPricesell = readCurrency(m_jPriceSell.getText());
+            prodPricesellLock = false;
         }
     }
 
@@ -975,38 +938,26 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         @Override
         public void changedUpdate(DocumentEvent e) {
-            if (!priceselllock) {
-                priceselllock = true;
-                pricesell = readCurrency(m_jPriceSell.getText());
-                priceselllock = false;
-            }
+            setPriceSellFromUI();
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void insertUpdate(DocumentEvent e) {
-            if (!priceselllock) {
-                priceselllock = true;
-                pricesell = readCurrency(m_jPriceSell.getText());
-                priceselllock = false;
-            }
+            setPriceSellFromUI();
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
-            if (!priceselllock) {
-                priceselllock = true;
-                pricesell = readCurrency(m_jPriceSell.getText());
-                priceselllock = false;
-            }
+            setPriceSellFromUI();
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
     }
 
@@ -1016,7 +967,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         public void changedUpdate(DocumentEvent e) {
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
 
         }
 
@@ -1024,21 +975,21 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         public void insertUpdate(DocumentEvent e) {
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
             calculateMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
     }
 
@@ -1048,21 +999,21 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         public void changedUpdate(DocumentEvent e) {
             calculatePriceSellfromPST();
             calculateMargin();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void insertUpdate(DocumentEvent e) {
             calculatePriceSellfromPST();
             calculateMargin();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
             calculatePriceSellfromPST();
             calculateMargin();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
     }
 
@@ -1072,28 +1023,29 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         public void changedUpdate(DocumentEvent e) {
             calculatePriceSellfromMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void insertUpdate(DocumentEvent e) {
             calculatePriceSellfromMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
             calculatePriceSellfromMargin();
             calculatePriceSellTax();
-            calculateGP();
+            calculateGrossProfitPercentage();
         }
     }
 
     private static Double readCurrency(String sValue) {
         try {
             return Formats.CURRENCY.parseValue(sValue);
-        } catch (BasicException e) {
+        }
+        catch (BasicException e) {
             return null;
         }
     }
@@ -1101,9 +1053,18 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     private static Double readPercent(String sValue) {
         try {
             return Formats.PERCENT.parseValue(sValue);
-        } catch (BasicException e) {
+        }
+        catch (BasicException e) {
             return null;
         }
+    }
+
+    private String getEmptyProperty() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>  \n"
+                + "<!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\">\n"
+                + "<properties>\n"
+                + "    <entry key=\"identifier\">value</entry>\n"
+                + "</properties>";
     }
 
     /**
@@ -1132,6 +1093,16 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jSupplier = new javax.swing.JComboBox();
         jBtnSupplier = new javax.swing.JButton();
         m_jTitle = new javax.swing.JLabel();
+        jLabel8 = new javax.swing.JLabel();
+        m_jInCatalog = new javax.swing.JCheckBox();
+        m_jCatalogOrder = new javax.swing.JTextField();
+        jLabel18 = new javax.swing.JLabel();
+        jLabel14 = new javax.swing.JLabel();
+        m_jConstant = new javax.swing.JCheckBox();
+        webLabel1 = new javax.swing.JLabel();
+        m_jPrintTo = new javax.swing.JComboBox();
+        m_jSendStatus = new javax.swing.JCheckBox();
+        m_jPrintKB = new javax.swing.JCheckBox();
         pricePanel = new javax.swing.JPanel();
         m_jmargin = new javax.swing.JTextField();
         jLabel3 = new javax.swing.JLabel();
@@ -1152,34 +1123,25 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jstockcost = new javax.swing.JTextField();
         jLabel10 = new javax.swing.JLabel();
         m_jstockvolume = new javax.swing.JTextField();
-        jLabel8 = new javax.swing.JLabel();
-        m_jInCatalog = new javax.swing.JCheckBox();
-        jLabel18 = new javax.swing.JLabel();
-        m_jCatalogOrder = new javax.swing.JTextField();
         jLabel15 = new javax.swing.JLabel();
         m_jService = new javax.swing.JCheckBox();
         jLabel11 = new javax.swing.JLabel();
-        m_jComment = new javax.swing.JCheckBox();
+        m_jCOM = new javax.swing.JCheckBox();
         jLabel12 = new javax.swing.JLabel();
         m_jScale = new javax.swing.JCheckBox();
-        m_jConstant = new javax.swing.JCheckBox();
-        jLabel14 = new javax.swing.JLabel();
         jLabel20 = new javax.swing.JLabel();
         m_jVprice = new javax.swing.JCheckBox();
         jLabel33 = new javax.swing.JLabel();
         m_jCheckWarrantyReceipt = new javax.swing.JCheckBox();
         jLabel23 = new javax.swing.JLabel();
-        webLabel1 = new javax.swing.JLabel();
-        m_jPrintTo = new javax.swing.JComboBox();
         jBtnShowTrans = new javax.swing.JButton();
         jScrollPane2 = new javax.swing.JScrollPane();
         jTableProductStock = new javax.swing.JTable();
-        m_jPrintKB = new javax.swing.JCheckBox();
-        m_jSendStatus = new javax.swing.JCheckBox();
         m_jStockUnits = new javax.swing.JTextField();
         jLblDate = new javax.swing.JLabel();
         m_jbtndate = new javax.swing.JButton();
         m_jdate = new javax.swing.JTextField();
+        jLabel24 = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         txtAttributes = new javax.swing.JTextArea();
@@ -1311,50 +1273,120 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jTitle.setOpaque(true);
         m_jTitle.setPreferredSize(new java.awt.Dimension(260, 25));
 
+        jLabel8.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        jLabel8.setText(AppLocal.getIntString("label.prodincatalog")); // NOI18N
+        jLabel8.setPreferredSize(new java.awt.Dimension(130, 30));
+
+        m_jInCatalog.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        m_jInCatalog.setSelected(true);
+        m_jInCatalog.setPreferredSize(new java.awt.Dimension(30, 30));
+        m_jInCatalog.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                m_jInCatalogActionPerformed(evt);
+            }
+        });
+
+        m_jCatalogOrder.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        m_jCatalogOrder.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+        m_jCatalogOrder.setPreferredSize(new java.awt.Dimension(50, 30));
+
+        jLabel18.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        jLabel18.setText(AppLocal.getIntString("label.prodorder")); // NOI18N
+        jLabel18.setPreferredSize(new java.awt.Dimension(130, 30));
+
+        jLabel14.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        jLabel14.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
+        jLabel14.setText(bundle.getString("label.prodconstant")); // NOI18N
+        jLabel14.setPreferredSize(new java.awt.Dimension(130, 30));
+
+        m_jConstant.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        m_jConstant.setPreferredSize(new java.awt.Dimension(30, 30));
+
+        webLabel1.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        webLabel1.setText(bundle.getString("label.printto")); // NOI18N
+        webLabel1.setToolTipText(bundle.getString("tooltip.printto")); // NOI18N
+        webLabel1.setPreferredSize(new java.awt.Dimension(130, 30));
+
+        m_jPrintTo.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        m_jPrintTo.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "0", "1", "2", "3", "4", "5", "6" }));
+        m_jPrintTo.setPreferredSize(new java.awt.Dimension(50, 30));
+
+        m_jSendStatus.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+
+        m_jPrintKB.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+            .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(m_jTitle, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                             .addComponent(jLabel13, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 167, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(m_jCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 222, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(m_jAtt, javax.swing.GroupLayout.PREFERRED_SIZE, 222, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addComponent(m_jAtt, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(m_jVerpatrib, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(m_jName, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 444, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                                .addComponent(m_jVerpatrib, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(73, 73, 73))
+                            .addComponent(m_jName, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 444, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addComponent(m_jCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(199, 199, 199))))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                                     .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 167, Short.MAX_VALUE))
+                                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jLabel17, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jLabel8, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 167, Short.MAX_VALUE)
+                                    .addComponent(jLabel17, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                                 .addGap(6, 6, 6)))
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(m_jSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, 228, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(m_jSupplier, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jBtnSupplier))
+                                .addComponent(jBtnSupplier)
+                                .addGap(89, 89, 89))
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(m_jRef, javax.swing.GroupLayout.PREFERRED_SIZE, 248, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(m_jCode, javax.swing.GroupLayout.PREFERRED_SIZE, 249, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addGap(12, 12, 12)
-                                .addComponent(m_jCodetype, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(m_jCodetype, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(m_jInCatalog, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(42, 42, 42)
+                                .addComponent(jLabel14, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(m_jConstant, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(162, 162, 162))))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(webLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 167, Short.MAX_VALUE)
+                            .addComponent(jLabel18, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(m_jCatalogOrder, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(18, 18, 18)
+                                .addComponent(m_jTitle, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addGap(4, 4, 4))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(m_jPrintTo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(37, 37, 37)
+                                .addComponent(m_jPrintKB, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(m_jSendStatus, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 0, Short.MAX_VALUE)))))
                 .addGap(56, 56, 56))
         );
         jPanel1Layout.setVerticalGroup(
@@ -1387,8 +1419,25 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                     .addComponent(jLabel17, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(m_jSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jBtnSupplier))
-                .addGap(26, 26, 26)
-                .addComponent(m_jTitle, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(m_jInCatalog, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(m_jConstant, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(m_jCatalogOrder, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel18, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(m_jTitle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(webLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(m_jPrintTo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(m_jPrintKB, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(m_jSendStatus, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap())
         );
 
@@ -1428,6 +1477,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         jLabel26.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         jLabel26.setText(AppLocal.getIntString("label.UOM")); // NOI18N
+        jLabel26.setToolTipText(AppLocal.getIntString("label.UOM")); // NOI18N
         jLabel26.setPreferredSize(new java.awt.Dimension(70, 30));
 
         m_jUom.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
@@ -1435,6 +1485,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         jLabel7.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         jLabel7.setText(AppLocal.getIntString("label.taxcategorym")); // NOI18N
+        jLabel7.setToolTipText(AppLocal.getIntString("label.taxcategorym")); // NOI18N
         jLabel7.setPreferredSize(new java.awt.Dimension(110, 30));
 
         m_jTax.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
@@ -1537,7 +1588,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         jPanel2.setPreferredSize(new java.awt.Dimension(0, 0));
 
         jLabel9.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        jLabel9.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel9.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
         jLabel9.setText(AppLocal.getIntString("label.prodstockcost")); // NOI18N
         jLabel9.setPreferredSize(new java.awt.Dimension(110, 30));
 
@@ -1546,34 +1597,13 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jstockcost.setPreferredSize(new java.awt.Dimension(85, 30));
 
         jLabel10.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        jLabel10.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel10.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
         jLabel10.setText(AppLocal.getIntString("label.prodstockvol")); // NOI18N
         jLabel10.setPreferredSize(new java.awt.Dimension(110, 30));
 
         m_jstockvolume.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         m_jstockvolume.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
         m_jstockvolume.setPreferredSize(new java.awt.Dimension(85, 30));
-
-        jLabel8.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        jLabel8.setText(AppLocal.getIntString("label.prodincatalog")); // NOI18N
-        jLabel8.setPreferredSize(new java.awt.Dimension(130, 30));
-
-        m_jInCatalog.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-        m_jInCatalog.setSelected(true);
-        m_jInCatalog.setPreferredSize(new java.awt.Dimension(30, 30));
-        m_jInCatalog.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                m_jInCatalogActionPerformed(evt);
-            }
-        });
-
-        jLabel18.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        jLabel18.setText(AppLocal.getIntString("label.prodorder")); // NOI18N
-        jLabel18.setPreferredSize(new java.awt.Dimension(130, 30));
-
-        m_jCatalogOrder.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        m_jCatalogOrder.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
-        m_jCatalogOrder.setPreferredSize(new java.awt.Dimension(50, 30));
 
         jLabel15.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         jLabel15.setText(bundle.getString("label.service")); // NOI18N
@@ -1587,8 +1617,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         jLabel11.setText(AppLocal.getIntString("label.prodaux")); // NOI18N
         jLabel11.setPreferredSize(new java.awt.Dimension(130, 30));
 
-        m_jComment.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-        m_jComment.setPreferredSize(new java.awt.Dimension(30, 30));
+        m_jCOM.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        m_jCOM.setPreferredSize(new java.awt.Dimension(30, 30));
 
         jLabel12.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         jLabel12.setText(AppLocal.getIntString("label.prodscale")); // NOI18N
@@ -1596,13 +1626,6 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
         m_jScale.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         m_jScale.setPreferredSize(new java.awt.Dimension(30, 30));
-
-        m_jConstant.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-        m_jConstant.setPreferredSize(new java.awt.Dimension(30, 30));
-
-        jLabel14.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        jLabel14.setText(bundle.getString("label.prodconstant")); // NOI18N
-        jLabel14.setPreferredSize(new java.awt.Dimension(130, 30));
 
         jLabel20.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         jLabel20.setText(bundle.getString("label.variableprice")); // NOI18N
@@ -1625,15 +1648,6 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         jLabel23.setText(bundle.getString("label.prodminmax")); // NOI18N
         jLabel23.setVerticalAlignment(javax.swing.SwingConstants.TOP);
         jLabel23.setPreferredSize(new java.awt.Dimension(531, 20));
-
-        webLabel1.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        webLabel1.setText(bundle.getString("label.printto")); // NOI18N
-        webLabel1.setToolTipText(bundle.getString("tooltip.printto")); // NOI18N
-        webLabel1.setPreferredSize(new java.awt.Dimension(130, 30));
-
-        m_jPrintTo.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
-        m_jPrintTo.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "0", "1", "2", "3", "4", "5", "6" }));
-        m_jPrintTo.setPreferredSize(new java.awt.Dimension(50, 30));
 
         jBtnShowTrans.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         jBtnShowTrans.setText(bundle.getString("button.ProductStock")); // NOI18N
@@ -1666,10 +1680,6 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         jTableProductStock.setRowHeight(25);
         jScrollPane2.setViewportView(jTableProductStock);
 
-        m_jPrintKB.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-
-        m_jSendStatus.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-
         m_jStockUnits.setEditable(false);
         m_jStockUnits.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
         m_jStockUnits.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
@@ -1691,6 +1701,11 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         m_jdate.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
         m_jdate.setPreferredSize(new java.awt.Dimension(160, 30));
 
+        jLabel24.setFont(new java.awt.Font("Arial", 0, 14)); // NOI18N
+        jLabel24.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        jLabel24.setText(AppLocal.getIntString("label.stock.quantity")); // NOI18N
+        jLabel24.setPreferredSize(new java.awt.Dimension(110, 30));
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -1699,100 +1714,67 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                 .addContainerGap()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel24, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(m_jStockUnits, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(jLabel18, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel8, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(m_jCatalogOrder, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(m_jInCatalog, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(webLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(m_jPrintTo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(18, 18, 18)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addGroup(jPanel2Layout.createSequentialGroup()
-                                        .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(m_jConstant, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(m_jstockvolume, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(m_jstockcost, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                            .addComponent(jLabel23, javax.swing.GroupLayout.DEFAULT_SIZE, 418, Short.MAX_VALUE)))
-                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                        .addGroup(jPanel2Layout.createSequentialGroup()
-                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                 .addGroup(jPanel2Layout.createSequentialGroup()
                                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addComponent(jLabel33, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(jLabel11, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(jLabel12, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addGroup(jPanel2Layout.createSequentialGroup()
+                                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                                .addComponent(jLabel33, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(jLabel11, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(jLabel12, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                                .addComponent(m_jService, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(m_jCheckWarrantyReceipt, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(m_jCOM, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(m_jScale, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addComponent(m_jVprice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                    .addGap(18, 18, 18)
+                                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 372, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                                    .addComponent(jLblDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                        .addComponent(m_jService, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(m_jCheckWarrantyReceipt, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(m_jComment, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(m_jScale, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(m_jVprice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addGroup(jPanel2Layout.createSequentialGroup()
-                                    .addComponent(m_jPrintKB, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(m_jSendStatus, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(m_jStockUnits, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                            .addGap(18, 18, 18)
-                            .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 372, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                            .addComponent(jLblDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                            .addComponent(m_jbtndate, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGap(0, 0, 0)
-                            .addComponent(m_jdate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jBtnShowTrans, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                    .addComponent(m_jbtndate, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGap(0, 0, 0)
+                                    .addComponent(m_jdate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jBtnShowTrans, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(m_jstockcost, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(m_jstockvolume, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(0, 66, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                .addComponent(m_jstockcost, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(m_jConstant, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(m_jstockvolume, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(18, 18, 18)
-                        .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(m_jInCatalog, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(m_jCatalogOrder, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel18, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(webLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(m_jPrintTo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(m_jstockcost, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(m_jstockvolume, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(3, 3, 3)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(m_jStockUnits, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel24, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jBtnShowTrans, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1813,7 +1795,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel11, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(m_jComment, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(m_jCOM, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel12, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1821,14 +1803,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(m_jVprice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addComponent(m_jPrintKB, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(m_jSendStatus, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(m_jStockUnits, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                .addContainerGap())
+                            .addComponent(m_jVprice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(11, 11, 11))
         );
 
         m_jService.getAccessibleContext().setAccessibleDescription("null");
@@ -2020,7 +1996,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
             }
         });
 
-        colourChooser.setText("Bck");
+        colourChooser.setFont(new java.awt.Font("Arial", 0, 12)); // NOI18N
+        colourChooser.setText(AppLocal.getIntString("button.prodhtmldisplayBackground")); // NOI18N
         colourChooser.setToolTipText(bundle.getString("tooltip.prodhtmldisplayColourChooser")); // NOI18N
         colourChooser.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -2034,23 +2011,21 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel4Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(jPanel4Layout.createSequentialGroup()
-                        .addComponent(jLabel28, javax.swing.GroupLayout.PREFERRED_SIZE, 230, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(272, 272, 272)
-                        .addComponent(jBtnReset, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                        .addComponent(jScrollPane3, javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addGroup(jPanel4Layout.createSequentialGroup()
+                            .addComponent(jLabel28, javax.swing.GroupLayout.PREFERRED_SIZE, 230, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGap(272, 272, 272)
+                            .addComponent(jBtnReset, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(jScrollPane3, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel4Layout.createSequentialGroup()
                                 .addComponent(jBtnStyle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jBtnBreak, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(jBtnColour, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(colourChooser, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jBtnColour, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addComponent(jBtnLarge, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jBtnSmall, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2060,12 +2035,13 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                                 .addComponent(jBtnItalic, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jBtnImage, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(jPanel4Layout.createSequentialGroup()
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel4Layout.createSequentialGroup()
                                 .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGap(18, 18, 18)
                                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jButtonHTML, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(m_jTextTip, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))))
+                                    .addComponent(m_jTextTip, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                    .addComponent(colourChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
         jPanel4Layout.setVerticalGroup(
@@ -2088,15 +2064,15 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
                         .addComponent(jBtnImage, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addComponent(jBtnStyle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jBtnBreak, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(18, 18, 18)
+                .addGap(12, 12, 12)
                 .addComponent(colourChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 32, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(18, 18, 18)
                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(m_jTextTip, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addComponent(jButtonHTML, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(94, Short.MAX_VALUE))
+                .addContainerGap(84, Short.MAX_VALUE))
         );
 
         jTabbedPane1.addTab(AppLocal.getIntString("label.button"), jPanel4); // NOI18N
@@ -2112,58 +2088,53 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
 
     private void jBtnXmlActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnXmlActionPerformed
         if (txtAttributes.getText() == null || txtAttributes.getText().isBlank()) {
-            txtAttributes.setText(
-                    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>  \n"
-                    + "<!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\">\n"
-                    + "<properties>\n"
-                    + "    <entry key=\"identifier\">value</entry>\n"
-                    + "</properties>");
+            txtAttributes.setText(getEmptyProperty());
         }
     }//GEN-LAST:event_jBtnXmlActionPerformed
 
     private void jBtnSmallActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnSmallActionPerformed
-        btn = 4;
-        setDisplay(btn);
+        customOptionMode = 4;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnSmallActionPerformed
 
     private void jBtnBreakActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnBreakActionPerformed
-        btn = 1;
-        setDisplay(btn);
+        customOptionMode = 1;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnBreakActionPerformed
 
     private void jBtnColourActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnColourActionPerformed
-        btn = 2;
-        setDisplay(btn);
+        customOptionMode = 2;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnColourActionPerformed
 
     private void jBtnLargeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnLargeActionPerformed
-        btn = 3;
-        setDisplay(btn);
+        customOptionMode = 3;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnLargeActionPerformed
 
     private void jBtnBoldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnBoldActionPerformed
-        btn = 5;
-        setDisplay(btn);
+        customOptionMode = 5;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnBoldActionPerformed
 
     private void jBtnItalicActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnItalicActionPerformed
-        btn = 6;
-        setDisplay(btn);
+        customOptionMode = 6;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnItalicActionPerformed
 
     private void jBtnImageActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnImageActionPerformed
-        btn = 7;
-        setDisplay(btn);
+        customOptionMode = 7;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnImageActionPerformed
 
     private void jBtnResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnResetActionPerformed
-        btn = 8;
-        setDisplay(btn);
+        customOptionMode = 8;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnResetActionPerformed
 
     private void jBtnStyleActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnStyleActionPerformed
-        btn = 9;
-        setDisplay(btn);
+        customOptionMode = 9;
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_jBtnStyleActionPerformed
 
     private void m_jbtndateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_m_jbtndateActionPerformed
@@ -2171,7 +2142,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         Date date;
         try {
             date = Formats.TIMESTAMP.parseValue(m_jdate.getText());
-        } catch (BasicException e) {
+        }
+        catch (BasicException e) {
             date = null;
         }
         date = JCalendarDialog.showCalendarTime(this, date);
@@ -2196,6 +2168,14 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         }
     }//GEN-LAST:event_jBtnShowTransActionPerformed
 
+    private void m_jGrossProfitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_m_jGrossProfitActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_m_jGrossProfitActionPerformed
+
+    private void colourChooserActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_colourChooserActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_colourChooserActionPerformed
+
     private void m_jInCatalogActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_m_jInCatalogActionPerformed
 
         if (m_jInCatalog.isSelected()) {
@@ -2206,21 +2186,13 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
         }
     }//GEN-LAST:event_m_jInCatalogActionPerformed
 
-    private void m_jGrossProfitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_m_jGrossProfitActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_m_jGrossProfitActionPerformed
-
     private void jBtnSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jBtnSupplierActionPerformed
         JDialogNewSupplier dialog = JDialogNewSupplier.getDialog(this, appView);
         dialog.setVisible(true);
 
         if (dialog.getSelectedSupplier() != null) {
-            try {
-                m_SuppliersModel = new ComboBoxValModel(m_sentsuppliers.list());
-                m_jSupplier.setModel(m_SuppliersModel);
-            } catch (BasicException ex) {
-                Logger.getLogger(ProductsEditor.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            m_SuppliersModel = new ComboBoxValModel(dlSuppliers.getSupplierListAll());
+            m_jSupplier.setModel(m_SuppliersModel);
         }
     }//GEN-LAST:event_jBtnSupplierActionPerformed
 
@@ -2229,7 +2201,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     }//GEN-LAST:event_none
 
     private void m_jNameFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_m_jNameFocusLost
-        setDisplay(btn);
+        setDisplay(customOptionMode);
     }//GEN-LAST:event_m_jNameFocusLost
 
     private void m_jCodeFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_m_jCodeFocusLost
@@ -2251,13 +2223,9 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
             clpbrd.setContents(stringSelection, null);
 
             JOptionPane.showMessageDialog(null,
-                    AppLocal.getIntString("message.uuidcopy"));
+                AppLocal.getIntString("message.uuidcopy"));
         }
     }//GEN-LAST:event_jLabel1MouseClicked
-
-    private void colourChooserActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_colourChooserActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_colourChooserActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton colourChooser;
@@ -2290,6 +2258,7 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel22;
     private javax.swing.JLabel jLabel23;
+    private javax.swing.JLabel jLabel24;
     private javax.swing.JLabel jLabel26;
     private javax.swing.JLabel jLabel28;
     private javax.swing.JLabel jLabel3;
@@ -2313,12 +2282,12 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
     private javax.swing.JTabbedPane jTabbedPane1;
     private javax.swing.JTable jTableProductStock;
     private javax.swing.JComboBox m_jAtt;
+    private javax.swing.JCheckBox m_jCOM;
     private javax.swing.JTextField m_jCatalogOrder;
     private javax.swing.JComboBox m_jCategory;
     private javax.swing.JCheckBox m_jCheckWarrantyReceipt;
     private javax.swing.JTextField m_jCode;
     private javax.swing.JComboBox m_jCodetype;
-    private javax.swing.JCheckBox m_jComment;
     private javax.swing.JCheckBox m_jConstant;
     private javax.swing.JTextArea m_jDisplay;
     private javax.swing.JTextField m_jGrossProfit;
