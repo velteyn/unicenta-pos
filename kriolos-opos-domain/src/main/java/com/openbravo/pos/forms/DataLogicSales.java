@@ -2364,7 +2364,7 @@ public class DataLogicSales extends BeanFactoryDataSingle {
                 prodStock.getLocationId(),
                 prodStock.getProductId(),
                 prodStock.getProductAttribSetId(),
-                prodStock.getReasonId(),
+                prodStock.getUnits(),
                 prodStock.getPrice(),
                 prodStock.getUserId(),
                 prodStock.getSupplierId(),
