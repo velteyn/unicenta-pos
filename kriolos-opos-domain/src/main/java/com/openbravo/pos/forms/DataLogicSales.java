@@ -978,28 +978,37 @@ public class DataLogicSales extends BeanFactoryDataSingle {
      */
     @SuppressWarnings("unchecked")
     public final List<ProductStock> getProductStockList(String pId) throws BasicException {
+
+        String SQL_STOCK = """
+        SELECT
+            P.ID AS product_id,
+            L.name AS location_name,
+            COALESCE(MAX(SC.units), 0) AS current_stock,
+            MAX(SL.stocksecurity) AS minimum_stock,
+            MAX(SL.stockmaximum) AS maximum_stock,
+            ROUND(P.pricebuy, 2) AS price_buy,
+            -- Standard calculation for price sell + tax
+            ROUND((P.pricesell * MAX(T.rate)) + P.pricesell, 2) AS price_sell,
+            P.memodate
+        FROM
+            products P
+        INNER JOIN
+            taxcategories TC ON P.TAXCAT = TC.ID
+        INNER JOIN
+            taxes T ON TC.ID = T.category
+        LEFT OUTER JOIN
+            stocklevel SL ON SL.product = P.ID
+        LEFT OUTER JOIN
+            stockcurrent SC ON P.ID = SC.product
+        INNER JOIN
+            locations L ON SC.location = L.ID
+        WHERE
+            P.ID = ?
+        GROUP BY
+            P.ID, L.name, P.pricebuy, P.pricesell, P.memodate;
+        """;
         return new PreparedSentence(sessionDB,
-                "SELECT products.id, "
-                + "locations.name AS Location, "
-                + "ANY_VALUE(stockcurrent.units) AS Current, "
-                + "ANY_VALUE(stocklevel.stocksecurity) AS Minimum, "
-                + "ANY_VALUE(stocklevel.stockmaximum) AS Maximum, "
-                + "Round(products.pricebuy,2) AS PriceBuy, "
-                + "Round((products.pricesell * ANY_VALUE(taxes.rate)) + products.pricesell,2) AS PriceSell, "
-                + "products.memodate "
-                + "FROM ((((taxcategories TC "
-                + "INNER JOIN taxes taxes "
-                + "ON (TC.id = taxes.category)) "
-                + "RIGHT OUTER JOIN products products "
-                + "ON (products.TAXCAT = TC.id)) "
-                + "LEFT OUTER JOIN stocklevel stocklevel "
-                + "ON (stocklevel.product = products.ID)) "
-                + "LEFT OUTER JOIN stockcurrent stockcurrent "
-                + "ON (products.ID = stockcurrent.product)) "
-                + "INNER JOIN locations locations "
-                + "ON (stockcurrent.location = locations.id) "
-                + "WHERE products.id= ? "
-                + "GROUP BY locations.name",
+               SQL_STOCK,
                 SerializerWriteString.INSTANCE,
                 ProductStock.getSerializerRead()).list(pId);
     }
