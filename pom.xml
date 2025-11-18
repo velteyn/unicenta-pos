@@ -62,13 +62,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <!-- surefire config -->
         <failIfNoTests>false</failIfNoTests>
-
-        <!-- Kotlin -->
-        <kotlin.version>1.7.22</kotlin.version>
-        <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
-
-        <!-- dependencies/library version -->
-        <lombok.version>1.18.36</lombok.version>
+        <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
 
     </properties>
 
@@ -203,18 +197,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <scope>provided</scope>
             </dependency>
 
-            <dependency>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-stdlib</artifactId>
-                <version>${kotlin.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-test</artifactId>
-                <version>${kotlin.version}</version>
-                <scope>test</scope>
-            </dependency>
-
             <!-- Netbeans Module - Layput -->
             <dependency>
                 <groupId>org.netbeans.external</groupId>
@@ -239,13 +221,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <artifactId>jaxb-impl</artifactId>
                 <version>2.3.3</version>
                 <scope>runtime</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
-                <scope>provided</scope>
             </dependency>
 
             <!-- ValidationAPI and NBM WRAPPER  -->
@@ -331,12 +306,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </dependency>
                     </dependencies>
                 </plugin>
-                <plugin>
-                    <groupId>org.projectlombok</groupId>
-                    <artifactId>lombok-maven-plugin</artifactId>
-                    <version>1.18.20.0</version>
-                </plugin>
-
             </plugins>
         </pluginManagement>
 
