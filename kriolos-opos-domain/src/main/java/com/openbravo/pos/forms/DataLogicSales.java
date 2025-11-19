@@ -1610,21 +1610,6 @@ public class DataLogicSales extends BeanFactoryDataSingle {
 
     /**
      *
-     * @param id
-     * @return
-     * @throws BasicException
-     */
-    public final boolean isCashActive(String id) throws BasicException {
-
-        return new PreparedSentence(sessionDB,
-                "SELECT MONEY FROM closedcash WHERE DATEEND IS NULL AND MONEY = ?",
-                SerializerWriteString.INSTANCE,
-                SerializerReadString.INSTANCE).find(id)
-                != null;
-    }
-
-    /**
-     *
      * @param tickettype
      * @param ticketid
      * @return
