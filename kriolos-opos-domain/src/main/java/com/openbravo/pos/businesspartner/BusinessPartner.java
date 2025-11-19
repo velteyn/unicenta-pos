@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.openbravo.pos.domain.entity.businesspartner;
+package com.openbravo.pos.businesspartner;
 
 import com.openbravo.data.loader.IKeyed;
 import com.openbravo.format.Formats;
@@ -25,9 +25,6 @@ import java.io.Serializable;
  *
  * @author poolborges
  */
-//@RequiredArgsConstructor
-//@ToString( doNotUseGetters = true )
-//@EqualsAndHashCode( doNotUseGetters = true )
 public class BusinessPartner implements Serializable, IKeyed {
 
     private static final long serialVersionUID = 1L;

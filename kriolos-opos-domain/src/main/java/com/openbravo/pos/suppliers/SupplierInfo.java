@@ -19,7 +19,7 @@
 
 package com.openbravo.pos.suppliers;
 
-import com.openbravo.pos.domain.entity.businesspartner.BusinessPartner;
+import com.openbravo.pos.businesspartner.BusinessPartner;
 
 /** 
  * @author Jack Gerrard 

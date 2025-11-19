@@ -16,7 +16,6 @@
 
 package com.openbravo.pos.businesspartner;
 
-import com.openbravo.pos.domain.entity.businesspartner.BusinessPartner;
 import com.openbravo.pos.resources.ImageResources;
 
 import java.awt.Component;

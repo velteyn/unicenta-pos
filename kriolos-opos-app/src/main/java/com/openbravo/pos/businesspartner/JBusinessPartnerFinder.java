@@ -18,13 +18,11 @@ package com.openbravo.pos.businesspartner;
 
 import com.openbravo.pos.customers.DataLogicCustomers;
 import com.openbravo.pos.customers.CustomerInfo;
-import com.openbravo.pos.customers.*;
 import com.openbravo.basic.BasicException;
 import com.openbravo.data.loader.QBFCompareEnum;
 import com.openbravo.data.user.EditorCreator;
 import com.openbravo.data.user.ListProvider;
 import com.openbravo.data.user.ListProviderCreator;
-import com.openbravo.pos.domain.entity.businesspartner.BusinessPartner;
 import com.openbravo.pos.forms.AppLocal;
 import com.openbravo.pos.forms.AppView;
 import java.awt.*;
