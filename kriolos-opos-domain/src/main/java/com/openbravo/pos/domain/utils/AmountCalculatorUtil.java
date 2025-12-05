@@ -176,53 +176,63 @@ public abstract class AmountCalculatorUtil {
     }
     
     /**
-     * Calculates the price margin percentage (e.g 0.2 = 20%).
+     * Calculates Markup
+     * 
+     * Definition: The amount added to the cost of a product to get the selling price, expressed as a percentage of the cost..
      *
-     * Formula: (Sell Price / Buy Price) - 1.0
+     * Formula: (Selling Price - Cost) / Cost or Profit / Cost.
      *
      * @param sellPrice The sell price
      * @param buyPrice The buy price
      * @return The margin percentage in decimal.
      */
-    public static double calcMarginPercentage(double sellPrice, double buyPrice) {
+    public static double calcMarkupPercentage(double sellPrice, double buyPrice) {
         BigDecimal sellPriceBD = new BigDecimal(String.valueOf(sellPrice));
         BigDecimal buyPriceBD = new BigDecimal(String.valueOf(buyPrice));
         
+        BigDecimal marginBD = BigDecimal.ONE;
+        
          //AVOID Division by zero Exception
-        if(buyPrice == 0.0){
-            buyPriceBD = BigDecimal.ONE;
+        if(buyPrice != 0.0){
+            marginBD = sellPriceBD.subtract(buyPriceBD).divide(buyPriceBD, SCALE, ROUNDING_MODE);
+        }else if(sellPrice == 0.0){
+            marginBD = BigDecimal.ZERO;
         }
 
-        // (sellPrice / buyPrice) - 1
-        BigDecimal marginBD = sellPriceBD.divide(buyPriceBD, SCALE, ROUNDING_MODE).subtract(BigDecimal.ONE);
-        
-
+   
 
         return marginBD.doubleValue();
     }
     
     /**
-     * Calculates the Gross Profit (e.g 0.2 = 20%).
+     * Calculates the Profit Margin (Gross Margin)
+     * 
+     * Definition: The percentage of revenue left after subtracting the cost of goods sold, showing profit as a percentage of the selling price.
+     * 
+     * (e.g 0.2 = 20%).
      *
-     * Formula: (sellPrice - buyPrice) / sellPrice
+     * Formula: (Selling Price - Cost) / Selling Price or Profit / Selling Price.
      *
      * @param sellPrice The sell price
      * @param buyPrice The buy price
-     * @return The margin percentage in decimal.
+     * @return The Profit Margin in decimal ().
      */
-    public static double calcGrossProfit(double sellPrice, double buyPrice) {
+    public static double calcProfitMarginPercentage(double sellPrice, double buyPrice) {
         BigDecimal sellPriceBD = new BigDecimal(String.valueOf(sellPrice));
         BigDecimal buyPriceBD = new BigDecimal(String.valueOf(buyPrice));
-
-        // (sellPrice - buyPrice) / sellPrice
-        BigDecimal grossPercentBD = sellPriceBD.subtract(buyPriceBD);
-
+  
+        BigDecimal profitMargin;
          //AVOID Division by zero Exception
         if(sellPrice != 0.0){
-            grossPercentBD = grossPercentBD.divide(sellPriceBD, SCALE, ROUNDING_MODE);
+            // (sellPrice - buyPrice) / sellPrice
+            profitMargin = sellPriceBD.subtract(buyPriceBD).divide(sellPriceBD, SCALE, ROUNDING_MODE);
+        }else if(buyPrice == 0.0) {
+            profitMargin = BigDecimal.ZERO;
+        }else {
+            profitMargin = new BigDecimal("-1.0");
         }
 
-        return grossPercentBD.doubleValue();
+        return profitMargin.doubleValue();
     }
     
     /**
