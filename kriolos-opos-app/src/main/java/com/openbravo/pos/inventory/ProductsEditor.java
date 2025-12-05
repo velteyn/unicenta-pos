@@ -834,8 +834,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
             if (dPriceBuy == null || dPriceSell == null) {
                 m_jmargin.setText(null);
             } else {
-                double margin = AmountCalculatorUtil.calcMarginPercentage(dPriceSell, dPriceBuy);
-                m_jmargin.setText(Formats.PERCENT.formatValue(margin));
+                double markup = AmountCalculatorUtil.calcMarkupPercentage(dPriceSell, dPriceBuy);
+                m_jmargin.setText(Formats.PERCENT.formatValue(markup));
             }
             prodFieldEditLock = false;
         }
@@ -870,8 +870,8 @@ public final class ProductsEditor extends com.openbravo.pos.panels.ValidationPan
             if (dPriceBuy == null || dPriceSell == null) {
                 m_jGrossProfit.setText(null);
             } else {
-                double grossGP = AmountCalculatorUtil.calcGrossProfit(dPriceSell, dPriceBuy);
-                m_jGrossProfit.setText(Formats.PERCENT.formatValue(grossGP));
+                double profitMargin = AmountCalculatorUtil.calcProfitMarginPercentage(dPriceSell, dPriceBuy);
+                m_jGrossProfit.setText(Formats.PERCENT.formatValue(profitMargin));
             }
             prodFieldEditLock = false;
         }
