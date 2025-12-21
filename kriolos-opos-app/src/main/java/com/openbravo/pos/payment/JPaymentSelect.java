@@ -234,7 +234,7 @@ public abstract class JPaymentSelect extends javax.swing.JDialog implements JPay
             String title = AppLocal.getIntString(jpay.getLabelKey());
 
             m_jTabPayment.addTab(
-                    fixedStringRithPad(AppLocal.getIntString(jpay.getLabelKey())),
+                    fixedStringRithPad(title),
                     ImageResources.getIcon(jpay.getIconKey()),
                     jpayinterface.getComponent(),
                     title);
@@ -330,6 +330,30 @@ public abstract class JPaymentSelect extends javax.swing.JDialog implements JPay
         @Override
         public String getIconKey() {
             return "/com/openbravo/images/voucher.png";
+        }
+    }
+    
+    // TODO: CARD
+    public class JPaymentCardCreator implements JPaymentCreator {
+
+        @Override
+        public JPaymentInterface createJPayment() {
+            return new JPaymentCard(JPaymentSelect.this);
+        }
+
+        @Override
+        public String getKey() {
+            return "payment.card";
+        }
+
+        @Override
+        public String getLabelKey() {
+            return "tab.card";
+        }
+
+        @Override
+        public String getIconKey() {
+            return "/com/openbravo/images/ccard.png";
         }
     }
 
@@ -844,9 +868,9 @@ public abstract class JPaymentSelect extends javax.swing.JDialog implements JPay
 
     private void m_jButtonPrintActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_m_jButtonPrintActionPerformed
         if (!m_jButtonPrint.isSelected()) {
-            jlblPrinterStatus.setText("Printer OFF");
+            jlblPrinterStatus.setText(AppLocal.getIntString("label.printerstatusOff"));
         } else {
-            jlblPrinterStatus.setText("Printer ON");
+            jlblPrinterStatus.setText(AppLocal.getIntString("label.printerstatusOn"));
         }
     }//GEN-LAST:event_m_jButtonPrintActionPerformed
 

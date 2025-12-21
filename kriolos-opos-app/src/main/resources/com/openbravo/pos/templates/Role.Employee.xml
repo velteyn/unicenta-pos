@@ -39,6 +39,7 @@
     <class name="sales.ViewSharedTicket"/>
     
     <class name="payment.cash"/>
+    <!-- <class name="payment.card"/> TODO: CARD  -->
     <class name="payment.cheque"/>
     <class name="payment.voucher"/>
     <class name="payment.magcard"/>
